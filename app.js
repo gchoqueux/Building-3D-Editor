@@ -15,7 +15,7 @@ view4 = init_view(viewerDiv4, position);
 
 function init_view(viewerDiv, position){
 	var view = new itowns.GlobeView(viewerDiv, position);
-	itowns.Fetcher.json('http://www.itowns-project.org/itowns/examples/layers/JSONLayers/Ortho.json')
+	itowns.Fetcher.json('https://www.itowns-project.org/itowns/examples/layers/JSONLayers/Ortho.json')
 		.then(ortho => {
 			var orthoSource = new itowns.WMTSSource(ortho.source);
 			var orthoLayer = new itowns.ColorLayer('Ortho', {
@@ -24,7 +24,7 @@ function init_view(viewerDiv, position){
 			view.addLayer(orthoLayer);
 		});
 
-	itowns.Fetcher.json('http://www.itowns-project.org/itowns/examples/layers/JSONLayers/IGN_MNT.json')
+	itowns.Fetcher.json('https://www.itowns-project.org/itowns/examples/layers/JSONLayers/IGN_MNT.json')
 		.then(mnt => {
 			var mntSource = new itowns.WMTSSource(mnt.source);
 			var mntLayer = new itowns.ElevationLayer('IGN_MNT', {
