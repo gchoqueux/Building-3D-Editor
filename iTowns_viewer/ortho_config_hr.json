@@ -1,0 +1,11 @@
+{
+    "url": "https://wxs.ign.fr/lambert93/geoportail/wmts",
+    "service": "WMTS",
+    "crs": "EPSG:2154",
+    "networkOptions": {
+        "crossOrigin": "anonymous"
+    },
+    "format": "image/png",
+    "name": "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2.L93",
+    "tileMatrixSet": "LAMB93"
+}
