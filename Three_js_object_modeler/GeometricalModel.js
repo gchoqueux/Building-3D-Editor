@@ -1,4 +1,4 @@
-import * as utils from'./utils.js';
+import * as utils from './utils/utils'
 
 class GeometricalModel{
     constructor(positions, index=null){
@@ -147,5 +147,10 @@ class GeometricalModel{
     
 
 }
+
+
+
+
+
 
 export{GeometricalModel};

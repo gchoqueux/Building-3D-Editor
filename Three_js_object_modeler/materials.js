@@ -5,14 +5,22 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         super();
 
         this.type = "BuildingMaterial";
+
+        //this.wireframe = true;
         
-        this.uniforms = THREE.ShaderLib.phong.uniforms;
+        this.uniforms = THREE.UniformsUtils.merge([
+            THREE.ShaderLib.phong.uniforms,
+            {
+                selectedFaceId:{value: -1}
+            }
+        ]) 
+        
 
         this.vertexShader = 
         `#define BUILDING
         varying vec3 vViewPosition;
-        attribute vec2 selected;
-        flat varying float vSelected;
+        attribute float fIndex;
+        varying float faceIndex;
         #include <common>
         #include <uv_pars_vertex>
         #include <displacementmap_pars_vertex>
@@ -42,7 +50,7 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
             #include <project_vertex>
             #include <logdepthbuf_vertex>
             #include <clipping_planes_vertex>
-            vSelected = selected.x;
+            faceIndex = fIndex+0.5;
             vViewPosition = - mvPosition.xyz;
             #include <worldpos_vertex>
             #include <envmap_vertex>
@@ -82,11 +90,12 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         #include <specularmap_pars_fragment>
         #include <logdepthbuf_pars_fragment>
         #include <clipping_planes_pars_fragment>
-        flat varying float vSelected;
+        varying float faceIndex;
+        uniform int selectedFaceId;
         void main() {
             #include <clipping_planes_fragment>
             vec4 diffuseColor = vec4( diffuse, opacity );
-            if (vSelected!=0.){
+            if (int(faceIndex)==selectedFaceId){
                 diffuseColor = vec4( vec3(1.,1.,1.)-diffuseColor.xyz, diffuseColor.w);
             }
             ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );

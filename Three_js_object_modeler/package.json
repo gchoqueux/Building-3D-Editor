@@ -1,6 +1,8 @@
 {
   "dependencies": {
-    "three": "^0.151.3"
+    "three": "^0.151.3",
+    "matrix-js": "^1.6.1",
+    "earcut" : "^2.2.4"
   },
   "devDependencies": {
     "vite": "^4.3.3"

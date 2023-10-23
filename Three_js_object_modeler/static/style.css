@@ -1,0 +1,28 @@
+body { 
+    margin: 0; 
+}
+.toolBox {
+    position: absolute;
+    border: 5px solid rgba(120,120,120) ;
+    border-radius: 15 px;
+    padding: 3px;
+    background-color: rgb(189, 189, 189); 
+    display: flex;
+    flex-direction: column;
+}
+
+.toolButton{
+    border: 2px solid rgba(150,0,0) ;
+    background-color: rgb(160, 160, 160); 
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.toolButton:hover{
+    border-color: rgba(0,150,0);
+}
+
+.imgToolbox{
+    width: 40px;
+    height: 40px;
+}

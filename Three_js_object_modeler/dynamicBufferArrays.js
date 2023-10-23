@@ -107,6 +107,11 @@ class UInt16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         this.pushValue(z);
     }
 
+    push2Values(x,y){
+        this.pushValue(x);
+        this.pushValue(y);
+    }
+
     pushValue(x){
         if (this.usedSize+1>this.allocatedSize){
             this.increaseSize();

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import * as utils from'./utils.js';
+import * as utils from './utils/utils';
 import { Float32ArrayDynamicBufferAttribute, UInt16ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import {GeometricalModel} from './GeometricalModel.js';

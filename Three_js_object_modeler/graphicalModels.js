@@ -98,4 +98,86 @@ class GraphicalModel extends THREE.Mesh{
     
 }
 
-export {GraphicalModel}
+
+
+
+
+
+
+
+class VertexData extends THREE.Mesh{
+    constructor(vertices, normals, uvs, fIndex, pIndex, vIndex, material){
+
+        super(new THREE.BufferGeometry() , material);
+
+        this.coords   = new Float32ArrayDynamicBufferAttribute(new Float32Array(vertices), 3, false);
+        this.normal   = new Float32ArrayDynamicBufferAttribute(new Float32Array(normals), 3, false);
+        this.uv       = new Float32ArrayDynamicBufferAttribute(new Float32Array(uvs), 2, false);
+        //ToDo : passer le fIndex en int
+        this.fIndex   = new Float32ArrayDynamicBufferAttribute(new Float32Array(fIndex), 1, false);
+        this.pIndex   = new UInt16ArrayDynamicBufferAttribute(new Uint16Array(pIndex), 1, false);
+        this.vIndex   = new UInt16ArrayDynamicBufferAttribute(new Uint16Array(vIndex), 2, false);
+
+        this.geometry.setAttribute('position', this.coords);
+        this.geometry.setAttribute('normal', this.normal);
+        
+        this.geometry.setAttribute('fIndex', this.fIndex);
+        this.geometry.setAttribute('pIndex', this.pIndex);
+
+        this.count    = vertices.length; 
+    }
+
+    applyChanges(){
+        this.geometry.setAttribute('position', this.coords);
+        this.geometry.setAttribute('normal', this.normal);
+        
+        this.geometry.setAttribute('fIndex', this.fIndex);
+        this.geometry.setAttribute('pIndex', this.pIndex);
+
+        this.geometry.getAttribute("position").needsUpdate = true;
+        this.geometry.getAttribute("normal").needsUpdate = true;
+        this.geometry.getAttribute("fIndex").needsUpdate = true;
+        this.geometry.getAttribute("pIndex").needsUpdate = true;
+    }
+
+    add(vertex, normal, uv, face, point3D, neighbours){
+        this.coords.pushValue(vertex[0], vertex[1], vertex[2]);
+
+        this.normal.pushValue(normal[0],normal[1],normal[2]);
+
+        this.uv.push2Value(uv[0], uv[1]);
+
+        this.fIndex.pushValue(face);
+
+        this.fIndex.pushValue(point3D);
+
+        this.fIndex.push2Values(neighbours[0], neighbours[1]);
+
+        this.count+=1;
+    }
+}
+
+
+class TriangleData{
+    constructor(fIndex, vIndex, tIndex){
+        this.fIndex   = fIndex;
+        this.vIndex   = vIndex;
+        this.tIndex   = tIndex;
+        this.count    = fIndex.length; 
+    }
+    add(vId1, vId2, vId3, fId){
+
+        count += 1;
+    }
+    findNeighbours(t){
+        let [v1,v2,v3] = t;
+        let neighbours = [];
+        for(let i=0; i<this.count; i++){
+
+        }
+    }
+
+}
+
+
+export {GraphicalModel, TriangleData, VertexData}

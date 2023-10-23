@@ -1,4 +1,17 @@
 import * as THREE from 'three';
+import matrix from 'matrix-js';
+
+/**
+ * Return the norme of the vector v
+ * @param {float[]} v 
+ */
+function norme(v){
+    let s = 0;
+    v.forEach(c=>{
+        s+=c*c;
+    })
+    return Math.sqrt(s);
+}
 
 function min(vec1, vec2){
     var x = Math.min(vec1.x, vec2.x);
@@ -69,7 +82,7 @@ function dotProduct(v1,v2){
 function angle(v1, v2){
     let a = normalize(v1);
     let b = normalize(v2);
-    return Math.acos(dotProduct(v1,v2));
+    return Math.acos(dotProduct(a,b));
 }
 
 function distance_Tr_Tr(triangle1, triangle2){
@@ -108,7 +121,28 @@ function distance_Pl_Pl(plan1, plan2){
     [a1,b1,c1,d1]=plan1;
     [a2,b2,c2,d2]=plan2;
 
-    return (Math.sqrt((a1-a2)*(a1-a2)+(b1-b2)*(b1-b2)+(c1-c2)*(c1-c2)+(d1-d2)*(d1-d2)));
+    //To Do : prendre en compte la distance spatiale si l'angle vaut 0
+
+    let n1 = normalize([a1,b1,c1]);
+    let n2 = normalize([a2,b2,c2]);
+
+    return (angle(n1,n2));
+    
+
+}
+
+
+function distance_Point_Pl(point, plan){
+    
+
+    
+    let [x,y,z]=point;
+    let [a,b,c,d]=plan;
+
+    let num = Math.abs(a*x+b*y+c*z+d);
+    let den = Math.sqrt(a*a+b*b+c*c);
+
+    return (num/den);
     
 
 }
@@ -144,4 +178,68 @@ function equals_vec(v1,v2){
     return true;
 }
 
-export{min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec}
+/**
+ * return 1 if p1,p2,p3 is oriented in the trigonomometric way,
+ * -1 if they are oriented clockwise, and 0 if they are aligned.
+ * 
+ * @param {float[]} p1 
+ * @param {float[]} p2 
+ * @param {float[]} p3 
+ */
+function orientation(p1, p2, p3){
+    let M = matrix([p1,p2,p3]);
+    M = matrix(M.trans());
+    let det = M.det();
+    if(det>0){
+        return 1;
+    }
+    else if(det<0){
+        return -1;
+    }
+    else{
+        return 0;
+    }
+
+
+}
+
+/**
+ * Computes the equation parameters of the plane defined by the vectors v1 & v2, and passing by the point p.
+ * 
+ * @param {float[]} v1 
+ * @param {float[]} v2 
+ * @param {float[]} p 
+ */
+function getPlanEquation2(v1, v2, p){
+    let n = crossProduct(v1,v2);
+    n = normalize(n);
+    let [a,b,c] = n;
+    let [x,y,z] = p;
+    let d = -(a*x+b*y+c*z);
+    return ([a,b,c,d])
+}
+
+/**
+ * return the intersection point between a line and a plan
+ * 
+ * @param {float[]} line parameters of the line [u,v,w, x_o, y_o, z_o]
+ * @param {float[]} plan parameters of the plane [a,b,c,d]
+ */
+function computeIntersection(line, plan){
+    let [u,v,w,x_o,y_o,z_o]   = line;
+    let [a,b,c,d]             = plan;
+    let den = a*u+b*v+c*w;
+    if(den==0){
+        return null;
+    }
+    else{
+        let num = -(a*x_o+b*y_o+c*z_o+d);
+        let t = num/den;
+        return ([u*t+x_o, v*t+y_o, w*t+z_o]);
+    }
+
+}
+
+
+
+export{norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
