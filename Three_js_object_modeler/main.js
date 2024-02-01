@@ -1,10 +1,6 @@
 import * as THREE from 'three';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { FlyControls } from 'three/addons/controls/FlyControls.js';
-//import { EditableMesh } from './editableObject.js';
 
-import { computeIdMap, picking } from './Picking.js';
 
 import { BuildingMaterial, DebugBuildingMaterial } from './materials.js';
 
@@ -12,13 +8,8 @@ import { buildingsJs } from './objectCreation.js';
 
 import { ModelBuilder, SceneBuilder } from './Builder.js';
 
-import { Controller } from './controller.js';
-
 import { ToolBar } from './tools.js';
 
-import * as Utils from './utils/utils';
-import * as GeomUtils from './utils/3DGeometricComputes.js'
-import matrix from 'matrix-js';
 
 const w = window;
 
@@ -98,8 +89,7 @@ const w = window;
 
     const geometry = new THREE.PlaneGeometry( 1000, 1000 );
     geometry.rotateX(-Math.PI/2);
-    const texture = new THREE.TextureLoader().load('textures/texture.jpg' ); 
-
+    
     const groundMaterial = new THREE.MeshPhongMaterial({color:0x888888, reflectivity:0.5, shininess : 40, specular : 0x000000});
     const plane = new THREE.Mesh( geometry, groundMaterial );
     scene.add( plane );
@@ -130,7 +120,6 @@ const w = window;
 
     }
 
-    var last_intersected = [];
     console.log(objects[0]);
     function render() {
 
@@ -236,16 +225,4 @@ const w = window;
         }
         graphicalController.changeMaterial(material);
     }
-      
-
-
-
-    
-
-
 }
-
-
-
-
-
