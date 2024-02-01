@@ -6,12 +6,14 @@ import Earcut from "earcut";
 
 class Point3D{
     static maxId = 0;
+    static pointsList = [];
     constructor(x,y,z){
         this.x=x;
         this.y=y;
         this.z=z;
         this.id = Point3D.maxId;
         Point3D.maxId+=1;
+        Point3D.pointsList.push(this);
     }
     toString(){
         return "P3D("+this.x+","+this.y+","+this.z+")";
@@ -129,6 +131,91 @@ class LinearRing{
         return tested;
     }
 
+    /**
+     * Returns true if the point is inside the linear ring, and false otherwise.
+     * @param {Array} point 
+     * @returns 
+     */
+    isInside(point){
+        let [a,b,c,d]=this.planeEquation;
+        let [x,y,z] = point;
+        let inside = true;
+        if(a*x+b*y+c*z+d<0.01){
+            let nb_touch = 0;
+            let M = this.computeToHorizontalMatrix();
+
+            let pt_matrix = matrix([[x],[y],[z],[1]]);
+            let h_pt = matrix(M.prod(pt_matrix));
+            x = h_pt(0,0);
+            y = h_pt(1,0);
+            
+            for(let i=0; i<this.positions.length; i++){
+                let pt1 = this.positions[i];
+                let pt2 = this.positions[(i+1)%this.positions.length];
+
+
+                let pt1_mat = matrix([[pt1.x], [pt1.y], [pt1.z],[1]]);
+                let pt2_mat = matrix([[pt2.x], [pt2.y], [pt2.z],[1]]);
+                let h_pt1 = matrix(M.prod(pt1_mat));
+                let h_pt2 = matrix(M.prod(pt2_mat));
+                let x1 = h_pt1(0,0);
+                let y1 = h_pt1(1,0);
+
+                let x2 = h_pt2(0,0);
+                let y2 = h_pt2(1,0);
+                if(y2-y1!=0){
+                    let t=-(y1-y)/(y2-y1);
+                    let xmax = Math.max(x1,x2);
+                    let xmin = Math.min(x1,x2);
+                    let ymax = Math.max(y1,y2);
+                    let ymin = Math.min(y1,y2);
+                    let x_int = x1+t*(x2-x1);
+                    let y_int = y1+t*(y2-y1);
+
+                    
+
+                    if(xmin<=x_int && xmax>= x_int && ymin<=y_int && ymax>=y_int && t>=0){
+                        //console.log(x,y, "["+xmin+","+xmax+"]"+", ["+ymin+","+ymax+"]");
+                        console.log(t);
+                        nb_touch++;
+                    }
+                }
+            }
+            if(nb_touch%2==0){
+                inside=false;
+            }
+        }
+        else{
+            inside = false;
+        }
+        return inside;
+    }
+
+    //Specific utils function
+    computeToHorizontalMatrix(){
+        let [a,b,c,d] = this.planeEquation;
+        let d2, d1, u,v;
+        if(b!=0){
+            [u,v] = [1, -a/b];
+            d2 = -d/b;
+            d1 = 0;
+        }
+        else{
+            [u,v] = [-b/a, 1];
+            d2 = 0;
+            d1 = -d/a;
+        }
+        
+
+        let Mr = matrix([
+            [u  , u*v,v  , 0],
+            [u*v, v*v,-u , 0],
+            [-v , u  ,0  , 0],
+            [0  , 0  ,0  , 1]
+        ])
+        return Mr;
+    }
+
 }
 
 class Surface{
@@ -187,9 +274,6 @@ class Polygon extends Surface{
     }
     triangulate(){
         
-        if (this.id==32){
-            console.log(this.planeEquation);
-        }
         let points = this.exterior.positions.concat(this.interior.positions);
         
 
@@ -200,9 +284,6 @@ class Polygon extends Surface{
         let holes=null;
         if(this.interior.size!=0){
             holes = [this.exterior.size];
-            if(this.id == 32){
-                console.log(points,holes);
-            }
         }
         
         if(this.planeEquation[2]!=0){  
@@ -219,33 +300,67 @@ class Polygon extends Surface{
                 pointsCoordinates[3*i + 2] = h_pt(2,0);
             }
             this.triangulation = Earcut(pointsCoordinates, holes, 3);
-            //console.log(this.triangulation);
-            if (this.id==32){
-                console.log(pointsCoordinates);
-            }
         }
 
-        //On réoriente les triangles si ils ne sont pas dans le sens trigonométrique.
-        for (let i=0; i<this.triangulation.length/3; i++){
-            let p1 = points[this.triangulation[3*i  ]];
-            let p2 = points[this.triangulation[3*i+1]];
-            let p3 = points[this.triangulation[3*i+2]];
-            let orientation = Utils.orientation([p1.x, p1.y, p1.z],[p2.x, p2.y, p2.z],[p3.x, p3.y, p3.z]);
-            if (orientation<0){
-                let mem = this.triangulation[3*i+1];
-                this.triangulation[3*i+1] = this.triangulation[3*i+2];
-                this.triangulation[3*i+2] = mem;
-            }
-        }
-        
-        
-        
+
 
         //On remplace la valeur représentant les points (indice dans le tableau positions) par leur indice (attribut de l'objet point3D)
         
         for (let i=0; i<this.triangulation.length; i++){
             this.triangulation[i]=points[this.triangulation[i]].id;
         }
+
+        //On réoriente les triangles si ils ne sont pas dans le meme sens que les faces.
+        let exterior_ids = [];
+        let interior_ids = [];
+
+        this.exterior.positions.forEach(p=>{
+            exterior_ids.push(p.id);
+        });
+        this.interior.positions.forEach(p=>{
+            interior_ids.push(p.id);
+        });
+
+
+        for (let i=0; i<this.triangulation.length/3; i++){
+            let p1_id = this.triangulation[3*i  ];
+            let p2_id = this.triangulation[3*i+1];
+            let p3_id = this.triangulation[3*i+2];
+            let e1 = [p2_id, p1_id];
+            let e2 = [p3_id, p2_id];
+            let e3 = [p1_id, p3_id];
+            if(Utils.isSubArray(exterior_ids,e1)||Utils.isSubArray(exterior_ids,e2)||Utils.isSubArray(exterior_ids,e3)){
+                let mem = this.triangulation[3*i+1];
+                this.triangulation[3*i+1] = this.triangulation[3*i+2];
+                this.triangulation[3*i+2] = mem;
+            }
+            if(Utils.isSubArray(interior_ids,e1)||Utils.isSubArray(interior_ids,e2)||Utils.isSubArray(interior_ids,e3)){
+                let mem = this.triangulation[3*i+1];
+                this.triangulation[3*i+1] = this.triangulation[3*i+2];
+                this.triangulation[3*i+2] = mem;
+            }
+        }
+
+        //To Do : vérifier l'orientation relative des triangles
+        let edges = [];
+        for (let i=0; i<this.triangulation.length/3; i++){
+            let p1_id = this.triangulation[3*i  ];
+            let p2_id = this.triangulation[3*i+1];
+            let p3_id = this.triangulation[3*i+2];
+            let e1 = [p2_id, p1_id];
+            let e2 = [p3_id, p2_id];
+            let e3 = [p1_id, p3_id];
+            if(Utils.isSubArray(edges,e1)||Utils.isSubArray(edges,e2)||Utils.isSubArray(edges,e3)){
+                let mem = this.triangulation[3*i+1];
+                this.triangulation[3*i+1] = this.triangulation[3*i+2];
+                this.triangulation[3*i+2] = mem;
+            }
+        }
+
+
+
+
+
     }
     find(id_point){
 
@@ -281,6 +396,42 @@ class Polygon extends Surface{
             [0  , 0  ,0  , 1]
         ])
         return Mr;
+    }
+
+    /**
+     * Calcul le paramètre t où le rayon point+t*vector intersecte
+     * le polygon (renvoie NaN si il n'y a pas d'intersection).
+     * @param {Array} point 
+     * @param {Array} vector 
+     * @returns 
+     */
+    intersectRay(point, vector){
+        let [a,b,c,d] = this.planeEquation;
+        let [x_p,y_p,z_p] = point;
+        let [x_v,y_v,z_v] = vector;
+        let t = NaN;
+        if(c*z_v+b*y_v+a*x_v != 0){
+            t = -(c*z_p+b*y_p+a*x_p+d)/(c*z_v+b*y_v+a*x_v);
+            let pi = [x_p+t*x_v, y_p+t*y_v, z_p+t*z_v];
+            if(t>0){
+                //console.log(t);
+            }
+            if(!this.exterior.isInside(pi) || this.interior.isInside(pi)){
+                t = NaN;
+            }
+        }
+
+        return t;
+
+    }
+    invertPlaneEquation(){
+        this.planeEquation[0]*=-1;
+        this.planeEquation[1]*=-1;
+        this.planeEquation[2]*=-1;
+        this.planeEquation[3]*=-1;
+
+        this.exterior.planeEquation = this.planeEquation;
+        this.interior.planeEquation = this.planeEquation;
     }
 
 }

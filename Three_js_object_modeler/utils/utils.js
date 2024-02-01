@@ -241,5 +241,179 @@ function computeIntersection(line, plan){
 }
 
 
+/**
+ * 
+ * @param {Array} l1  
+ * @param {Array} l2 
+ * @returns The number of common elements in the 2 lists
+ */
+function nbCommonElts(l1,l2){
+    let nb=0;
+    l1.forEach(e=>{
+        if(l2.indexOf(e)!=-1){
+            nb+=1;
+        }
+    })
+    return nb;
+}
 
-export{norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+
+/**
+ * 
+ * @param {Array} l1  
+ * @param {Array} l2 
+ * @returns The number of common elements in the 2 lists
+ */
+function getCommonElts(l1,l2){
+    let commonElts=[];
+    l1.forEach(e=>{
+        if(l2.indexOf(e)!=-1){
+            commonElts.push(e);
+        }
+    })
+    return commonElts;
+}
+
+/**
+ * 
+ * @param  {...Array} lists 
+ * @returns The result of the merge of all the lists, without doubles
+ */
+function mergeListsWithoutDoubles(...lists){
+    let res = [];
+    lists.forEach(l=>{
+        l.forEach(e=>{
+            if(res.indexOf(e)==-1){
+                res.push(e);
+            }
+        })
+    })
+    return res;
+}
+
+function indexOf(e, l){
+    if(e.length){
+        let index = -1;
+        let j=0;
+        l.forEach(e2=>{
+            if(index==-1 && e2.length==e.length){
+                let equal = true;
+                for(let i=0; i<e.length; i++){
+                    if(e[i]!=e2[i]){
+                        equal = false;
+                        break;
+                    }
+                }
+                if(equal){
+                    index=j;
+                }
+            }
+            j++;
+        })
+        return(index);
+    }
+    else{
+        return l.indexOf(e);
+    }
+}
+
+/**
+ * 
+ * @param  {...Array} lists 
+ * @returns The result of the merge of all the lists, without doubles. Works with List of list
+ */
+function mergeListsWithoutDoublesV2(...lists){
+    let res = [];
+    lists.forEach(l=>{
+        l.forEach(e=>{
+            if(indexOf(e, res)==-1){
+                res.push(e);
+            }
+        })
+    })
+    return res;
+}
+
+/**
+ * 
+ * @param {Array} list 
+ * @param {Array} elts 
+ * @returns The list with the elements removed
+ */
+function removeElements(list, elts){
+    let list_copy = [...list];
+    elts.forEach(e=>{
+        while(list_copy.indexOf(e)!=-1){
+            list_copy.splice(list_copy.indexOf(e),1);
+        }
+    });
+    return list_copy;
+}
+
+/**
+ * 
+ * @param {Array} a1
+ * @param {Array} a2 
+ * @returns Return true if a2 is a sub array of a1.
+ */
+function isSubArray(a1, a2){
+    let result = false;
+    for(let i=0; i<=a1.length-a2.length; i++){
+        let subArray = true;
+        for(let j=0; j<a2.length; j++){
+            if(a1[i+j]!=a2[j]){
+                subArray = false;
+                break;
+            }
+        }
+        if(subArray){
+            result = true;
+            break;
+        }
+    }
+    return result;
+}
+
+
+/**
+ * 
+ * @param {Array[Array]} a 
+ * @param {Array} e 
+ * @returns 
+ */
+function findElement(a, e){
+    let index = -1;
+    for(let i=0; i<=a.length; i++){
+        if(a[i].length==e.length && nbCommonElts(a[i], e)==e.length){
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+
+/**
+ * Returns a rank for the edge defined by the points of id i and j.
+ * @param {int} i 
+ * @param {int} j 
+ * @returns int
+ */
+function computeHalfEdgeRank(i, j){
+    return(j+(i+j)*(i+j+1)/2);
+}
+
+/**
+ * Use the bijection (i,j)->j+(i+j)*(i+j+1)/2 to give a rank 
+ * to the half edge defined by the points of id i and j.
+ * @param {int} i 
+ * @param {int} j 
+ * @returns int
+ */
+function computeEdgeRank(i,j){
+    let M = Math.max(i,j);
+    let m = Math.min(i,j);
+    return this.computeHalfEdgeRank(M,m);
+}
+
+export{computeEdgeRank, computeHalfEdgeRank, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}

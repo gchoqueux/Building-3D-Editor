@@ -7,9 +7,41 @@ class dynamicBufferAttribute extends THREE.BufferAttribute{
         this.usedSize = this.count;
     }
 
-    increaseSize(){
-
+    _increaseSize(){
+        this.allocatedSize*=2;
+        let new_array = new this.array.constructor(this.allocatedSize*this.itemSize);
+        for (let i=0; i<this.usedSize; i++){
+            new_array[i] = this.array[i];
+        }
+        this.array = new_array;
     }
+
+    _decreaseSize(){
+        this.allocatedSize/=2;
+        let new_array = new this.array.constructor(this.allocatedSize*this.itemSize);
+        for (let i=0; i<this.usedSize; i++){
+            new_array[i] = this.array[i];
+        }
+        this.array = new_array;
+    }
+
+    removeValue(i){
+        if(this.usedSize!=0){
+            for(let j=this.itemSize*i; j<this.itemSize*(this.usedSize-1); j++){
+                this.array[j]=this.array[j+this.itemSize];
+            }
+            for(let j=this.itemSize*(this.usedSize-1); j<this.itemSize*this.usedSize;j++){
+                this.array[j]=null;
+            }
+            this.usedSize-=1;
+            this.count-=1;
+            if(this.usedSize<=this.allocatedSize/2){
+                this._decreaseSize();
+            }
+        }
+        
+    }
+
 
     addValue(index,x,y,z){
         if (this.usedSize+1>this.allocatedSize){
@@ -26,11 +58,57 @@ class dynamicBufferAttribute extends THREE.BufferAttribute{
         this.setXYZ(i, x, y, z);
 
         this.usedSize += 1;
+        this.count+=1;
         this.needsUpdate = true;
     }
 
     getXYZ(index){
         return [this.getX(index),this.getY(index),this.getZ(index)];
+    }
+
+    getXY(index){
+        return [this.getX(index),this.getY(index)];
+    }
+
+
+    set(index, values){
+        if(this.itemSize != values.length){
+            console.error("item size different to added item size");
+        }
+        else{
+            index *= this.itemSize;
+            if ( this.normalized ) {
+
+                x = THREE.MathUtils.normalize( x, this.array );
+                y = THREE.MathUtils.normalize( y, this.array );
+                z = THREE.MathUtils.normalize( z, this.array );
+    
+            }
+
+            for(let i=0; i<values.length; i++){
+                this.array[ index + i ] = values[i];
+            }
+
+		    return this;
+
+        } 
+    }
+
+
+    pushValue(values){
+        if(this.itemSize != values.length){
+            console.error("item size different to added item size");
+        }
+        else{
+            if (this.usedSize+1>this.allocatedSize){
+                this.increaseSize();
+            }
+            this.set(this.usedSize, values);
+    
+            this.usedSize += 1;
+            this.count+=1;
+            this.needsUpdate = true;
+        }
     }
 
 
@@ -55,15 +133,7 @@ class Float32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         this.count*=2;
     }
 
-    pushValue(x,y,z){
-        if (this.usedSize+1>this.allocatedSize){
-            this.increaseSize();
-        }
-        this.setXYZ(this.usedSize, x, y, z);
-
-        this.usedSize += 1;
-        this.needsUpdate = true;
-    }
+    
 
     
 
@@ -71,7 +141,6 @@ class Float32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         if (this.usedSize+1>this.allocatedSize){
             this.increaseSize();
         }
-
         
         this.setXY(this.usedSize, x, y);
 
@@ -112,7 +181,7 @@ class UInt16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         this.pushValue(y);
     }
 
-    pushValue(x){
+    /*pushValue(x){
         if (this.usedSize+1>this.allocatedSize){
             this.increaseSize();
         }
@@ -121,7 +190,7 @@ class UInt16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 
         this.usedSize += 1;
         this.needsUpdate = true;
-    }
+    }*/
 
     
 
@@ -152,7 +221,7 @@ class Int16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         this.pushValue(z);
     }
 
-    pushValue(x){
+    /*pushValue(x){
         if (this.usedSize+1>this.allocatedSize){
             this.increaseSize();
         }
@@ -161,6 +230,10 @@ class Int16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 
         this.usedSize += 1;
         this.needsUpdate = true;
+    }*/
+    push2Values(x,y){
+        this.pushValue(x);
+        this.pushValue(y);
     }
 
     
@@ -193,7 +266,7 @@ class Int32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
         this.pushValue(z);
     }
 
-    pushValue(x){
+    /*pushValue(x){
         if (this.usedSize+1>this.allocatedSize){
             this.increaseSize();
         }
@@ -202,7 +275,7 @@ class Int32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 
         this.usedSize += 1;
         this.needsUpdate = true;
-    }
+    }*/
 
     
 
