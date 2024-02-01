@@ -2,17 +2,19 @@ import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FlyControls } from 'three/addons/controls/FlyControls.js';
-import { EditableMesh } from './editableObject.js';
+//import { EditableMesh } from './editableObject.js';
 
 import { computeIdMap, picking } from './Picking.js';
 
-import { BuildingMaterial } from './materials.js';
+import { BuildingMaterial, DebugBuildingMaterial } from './materials.js';
 
 import { buildingsJs } from './objectCreation.js';
 
 import { ModelBuilder, SceneBuilder } from './Builder.js';
 
 import { Controller } from './controller.js';
+
+import { ToolBar } from './tools.js';
 
 import * as Utils from './utils/utils';
 import * as GeomUtils from './utils/3DGeometricComputes.js'
@@ -29,6 +31,7 @@ const w = window;
 
 
 
+    //Reading of the object data
     let modelBuilder = new ModelBuilder();
     buildingsJs.forEach(
         building=>{
@@ -40,14 +43,23 @@ const w = window;
 
     let sceneBuilder = new SceneBuilder();
 
+    //Pour le debug graphique
+    const material_debug = new DebugBuildingMaterial({color:0x00ff00, reflectivity:1, shininess : 60, specular : 0x000000});
+  
 
-    const material = new BuildingMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
-    //const material = new THREE.MeshPhongMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
-    material.side = THREE.DoubleSide;
+    const material_building = new BuildingMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
+    let material = material_building;
+    material_debug.side = THREE.DoubleSide;
+    material_building.side = THREE.DoubleSide;
     sceneBuilder.build(buildingsModel, 3, material);
 
     let graphicalController = sceneBuilder.getScene();
-
+    console.log(graphicalController);
+    
+    //Pour le debug graphique
+    material_debug.uniforms.maxPointId.value = Math.max(...graphicalController.vertexData.pIndex.array);
+    material_debug.uniforms.maxFaceId.value = Math.max(...graphicalController.vertexData.fIndex.array);
+    
 
 
     let objects = [graphicalController.vertexData];
@@ -80,11 +92,12 @@ const w = window;
     scene.add( pLight3 );
 
 
-    camera.position.z = 5;
+    camera.position.y = 10;
 
     //Ground creation
 
     const geometry = new THREE.PlaneGeometry( 1000, 1000 );
+    geometry.rotateX(-Math.PI/2);
     const texture = new THREE.TextureLoader().load('textures/texture.jpg' ); 
 
     const groundMaterial = new THREE.MeshPhongMaterial({color:0x888888, reflectivity:0.5, shininess : 40, specular : 0x000000});
@@ -104,6 +117,7 @@ const w = window;
     //Ray casting
 
     const raycaster = new THREE.Raycaster();
+    raycaster.layers.enableAll();
     const pointer = new THREE.Vector2();
 
     function onPointerMove( event ) {
@@ -117,39 +131,21 @@ const w = window;
     }
 
     var last_intersected = [];
-
+    console.log(objects[0]);
     function render() {
+
+        //objects = [graphicalController.vertexData];
 
         // update the picking ray with the camera and pointer position
         raycaster.setFromCamera( pointer, camera );
     
         //reset the color of last intersected objects
     
-        for (var i=0; i<last_intersected.length; i++){
-            last_intersected[i].object.material = material;
-        }
-    
-        // calculate objects intersecting the picking ray
-        //const intersects = raycaster.intersectObjects( scene.children );
-        const intersects = raycaster.intersectObjects( objects );
-        last_intersected = intersects;
-
-        if(intersects.length!=0){
-            pickedPoint = intersects[0].point;
-        }
-
-        if(!clicked){
-            graphicalController.changeSelectedFace(-1, material);
-
-            if(intersects.length!=0){
-                let triangleIndex = intersects[0].face.a/3;
-                graphicalController.changeSelectedFace(triangleIndex, material);
-            }
-        }
+        toolBar.selectedTool.onRender(raycaster, objects, material);
         
 
     
-        renderer.render( scene, camera );
+        //renderer.render( scene, camera );
     }
 
     w.addEventListener( 'pointermove', onPointerMove );
@@ -159,137 +155,30 @@ const w = window;
 
 
     //event listeners
-    let clicked = false;
-    let lastPicked = new THREE.Vector3();
-    let pickedPoint = new THREE.Vector3();
-    let lastPos = new THREE.Vector2();
 
 
-    let verticesPPT = [];
-    let geometryPPT = new THREE.BufferGeometry();
-    let materialPPT = new THREE.PointsMaterial( { color: 0x00FF00 , size: 0.5} );
-    let projectedPointThree = new THREE.Points(geometryPPT, materialPPT);
+    let toolBar = new ToolBar(camera, graphicalController, controls, scene);
+    toolBar.changeTool("Shift");
 
-    scene.add(projectedPointThree);
-
-    function onMouseDown(event){
-        if(graphicalController.faceData.selectedFace != -1){
-            clicked = true;
-            controls.enabled = false;
-            lastPos.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-            lastPos.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-        }
-    }
+    
 
     function onMove(event){
-        if(clicked){
-            let faceId = graphicalController.faceData.selectedFace;
-            if(faceId!=-1){
-                let debugInfo = {};
-                let x = ( event.clientX / window.innerWidth ) * 2 - 1;
-                let y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-                let z = 1;
-
-                debugInfo["screen coords"] = [x,y,z];
-
-                //To Do passer en view proj 3*3
-                let m = new THREE.Vector3(x,y,z);
-                m.unproject(camera);
-                debugInfo["world pointer coords"] = [m.x, m.y, m.z];
-                debugInfo["world camera coords"] = [camera.position.x, camera.position.y, camera.position.z];
-                m.sub(camera.position);
-                /*let m = new THREE.Vector3();
-                m.copy(pickedPoint);
-                m.sub(camera.position);*/
-                m.normalize();
-                debugInfo["picking line vector"] = [m.x, m.y, m.z];
-
-
-                let n = graphicalController.faceData.planeEquation[faceId].slice(0,3);
-                n = Utils.normalize(n);
-
-                debugInfo["normale"] = n;
-                
-                let cx = graphicalController.faceData.center[3*faceId];
-                let cy = graphicalController.faceData.center[3*faceId+1];
-                let cz = graphicalController.faceData.center[3*faceId+2];
-                /*let cx = lastPicked.x;
-                let cy = lastPicked.y;
-                let cz = lastPicked.z;*/
-                debugInfo["face center"] = [cx,cy,cz];
-
-                let pickingLine = [[camera.position.x,camera.position.y,camera.position.z],[m.x,m.y,m.z]];
-                
-                let faceLine    = [[cx,cy,cz],[n[0],n[1],n[2]]];
-
-                let closestPoint = GeomUtils.findClosestPointToNLines(pickingLine, faceLine);
-                let projectedPoint = GeomUtils.projectPointOnLine(closestPoint, faceLine);
-
-                debugInfo["P*"] = closestPoint;
-                debugInfo["P* projete"] = projectedPoint;
-
-
-                let shiftVect = [projectedPoint[0]-cx,projectedPoint[1]-cy, projectedPoint[2]-cz];
-                let orientation = Utils.dotProduct(shiftVect, n);
-                let delta = Utils.norme(shiftVect);
-                if(orientation<0){
-                    delta*=-1;
-                }
-                
-
-                debugInfo["delta"] = delta;
-                
-                console.log(debugInfo);
-
-                
-
-                graphicalController.faceShift2(faceId, delta);
-                lastPicked.copy(pickedPoint);
-
-                verticesPPT.push(projectedPoint[0], projectedPoint[1], projectedPoint[2]);
-
-                geometryPPT.setAttribute( 'position', new THREE.Float32BufferAttribute( verticesPPT, 3 ) );
-                
-                geometryPPT.getAttribute("position").needsUpdate = true;
-            }
-            
-        }
+        toolBar.onMove(event);
     }
-
-    function onMove_easy(event){
-        if(clicked){
-            let faceId = graphicalController.faceData.selectedFace;
-            if(faceId!=-1){
-                
-                let x = ( event.clientX / window.innerWidth ) * 2 - 1;
-                let y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-
-                let v = new THREE.Vector2(x,y);
-                v.sub(lastPos);
-
-                let delta = 4*v.length();
-
-                if(v.x<0){
-                    delta = -delta;
-                }
-
-                graphicalController.faceShift2(faceId, delta);
-                lastPos.x = x;
-                lastPos.y = y;
-
-            }
-            
-        }
-    }
-
     function onMouseUp(event){
-        clicked = false;
-        controls.enabled = true;
+        toolBar.onMouseUp(event);
+    }
+    function onMouseDown(event){
+        toolBar.onMouseDown(event);
+    }
+    function onClick(event){
+        toolBar.onClick(event);
     }
 
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup'  , onMouseUp);
+    document.addEventListener('click'  , onClick);
 
 
     
@@ -304,6 +193,50 @@ const w = window;
         renderer.render( scene, camera );
     }
     animate();
+
+
+
+
+
+
+    //Tool selection
+    let navigationButton = document.getElementById("navigation_button");
+    let shiftButton      = document.getElementById("shift_button");
+    let splitPointButton = document.getElementById("split_point_button");
+    let flipEdgeButton   = document.getElementById("flip_edge_button");
+
+    navigationButton.onclick = function(ev){
+        toolBar.changeTool("Navigation");
+    }
+    shiftButton.onclick = function(ev){
+        toolBar.changeTool("Shift");
+    }
+    splitPointButton.onclick = function(ev){
+        toolBar.changeTool("SplitPoint");
+    }
+    flipEdgeButton.onclick = function(ev){
+        toolBar.changeTool("FlipEdge");
+    }
+
+
+    //Debug tools
+    let wireframe_switch = document.getElementById("wireframe_switch");
+    wireframe_switch.onchange = function(e){
+        material_building.wireframe = e.target.checked;
+        material_debug.wireframe = e.target.checked;
+    }
+    
+    let debug_material_switch = document.getElementById("debug_material_switch");
+    debug_material_switch.onchange = function(e){
+        if(e.target.checked){
+            material = material_debug;
+        }
+        else{
+            material = material_building;
+        }
+        graphicalController.changeMaterial(material);
+    }
+      
 
 
 

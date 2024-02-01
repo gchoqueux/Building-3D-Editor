@@ -1,3 +1,4 @@
+/*
 import * as THREE from 'three';
 import * as utils from './utils/utils';
 import { Float32ArrayDynamicBufferAttribute, UInt16ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
@@ -205,9 +206,6 @@ class EditableMesh{
             var v2 = [positions.getX(3*index+1), positions.getY(3*index+1), positions.getZ(3*index+1)];
             var v3 = [positions.getX(3*index+2), positions.getY(3*index+2), positions.getZ(3*index+2)];
 
-            /*console.log(v1)
-            console.log(v2)
-            console.log(v3)*/
 
 
             //On récupère les coordonnées textures et normales de la face
@@ -258,11 +256,6 @@ class EditableMesh{
         this.threeObject.geometry.setDrawRange(0, this.usedSize);
         console.log(this.threeObject);
         
-        /*const geometry = new THREE.BufferGeometry();
-        var positions = this.threeObject.geometry.getAttribute('position');
-        geometry.setAttribute('position',new Float32ArrayDynamicBufferAttribute(positions.array, positions.itemSize, positions.normalized));
-        const material = new THREE.MeshBasicMaterial( {color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000} );
-        this.threeObject = new THREE.Mesh( geometry, material );*/
         
 
 
@@ -272,9 +265,7 @@ class EditableMesh{
         const newGeometry = new THREE.BufferGeometry();
         const newPositions = new Float32Array( 2*this.allocatedSize * 3 );
         newGeometry.setAttribute('position', new THREE.BufferAttribute(newPositions,3));
-        /*newGeometry.setAttribute('normal', new THREE.BufferAttribute(newPositions,3));
-        newGeometry.setAttribute('uv', new THREE.BufferAttribute(newPositions,3));*/
-
+        
         for (var i=0; i<this.allocatedSize; i++){
             const x = this.coordinates.getX(i);
             const y = this.coordinates.getY(i);
@@ -378,9 +369,7 @@ class EditableMesh{
     useRandomColoration(){
         //Création d'un attribut dotant chaque triangle d'une couleur aléatoire
         this.computeRandomColoration();
-        /*const materialRandomColoration = new THREE.MeshBasicMaterial({
-            vertexColors: true
-        });*/
+
         const materialRandomColoration = new THREE.MeshPhongMaterial({vertexColors: true, color : 0xffffff, reflectivity:0.8, shininess : 40, specular : 0xffffff});
         this.threeObject.material = materialRandomColoration;
     }
@@ -405,9 +394,7 @@ class EditableMesh{
     useRandomFaceColoration(){
         //Création d'un attribut dotant chaque triangle d'une couleur aléatoire
         this.computeRandomFaceColoration();
-        /*const materialRandomColoration = new THREE.MeshBasicMaterial({
-            vertexColors: true
-        });*/
+
         const materialRandomColoration = new THREE.MeshPhongMaterial({vertexColors: true, color : 0xffffff, reflectivity:0.8, shininess : 40, specular : 0xffffff});
         this.threeObject.material = materialRandomColoration;
     }
@@ -454,4 +441,4 @@ class EditableMesh{
 
 }
 
-export {EditableMesh}
+export {EditableMesh}*/
