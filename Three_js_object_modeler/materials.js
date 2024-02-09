@@ -115,7 +115,6 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
             #include <lights_fragment_end>
             #include <aomap_fragment>
             vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular + totalEmissiveRadiance;
-            
             #include <envmap_fragment>
             #include <output_fragment>
             #include <tonemapping_fragment>

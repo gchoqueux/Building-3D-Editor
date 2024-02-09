@@ -255,4 +255,4 @@ function intersects(segment1, segment2){
 
 
 
-export {checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}
+export {computeToHorizontalMatrix, checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}
