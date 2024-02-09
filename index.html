@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>My first three.js app</title>
+		<link rel="stylesheet" href="static/style.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/clay/lib/css/atlas.css">
+<script src="https://cdn.jsdelivr.net/npm/clay/lib/js/clay.js"></script>
+	</head>
+	<body>
+		<!--<label for="colorationMods">Choose a coloration :</label>
+		<select id="colorationMods" name="coloration">
+			<option value="normal">Normal</option>
+			<option value="triangles">Triangles</option>
+			<option value="face">Face</option>
+		</select>-->
+		<script type="module" src="/main.js"></script>
+		<div class="toolBox">
+			<label class="toggle-switch" id="wireframe_switch">
+				<input class="toggle-switch-check" type="checkbox"/>
+				<span class="toggle-switch-text">Wireframe</span>
+				<span aria-hidden="true" class="toggle-switch-bar">
+					<span class="toggle-switch-handle" data-label-off="OFF" data-label-on="ON">
+					</span>
+				</span>
+			</label>
+
+			<label class="toggle-switch">
+				<input class="toggle-switch-check" type="checkbox" id="debug_material_switch"/>
+				<span class="toggle-switch-text">Debug Texture</span>
+				<span aria-hidden="true" class="toggle-switch-bar">
+					<span class="toggle-switch-handle" data-label-off="OFF" data-label-on="ON">
+					</span>
+				</span>
+			</label>
+
+			<button id="navigation_button" class="toolButton"><img src="static/img/icones_toolbox/icone_navig.png" class="imgToolbox" alt="navigbuttonpng"></button>
+			<button id="shift_button" class="toolButton"><img src="static/img/icones_toolbox/icone_shift.png" class="imgToolbox" alt="shiftbuttonpng"></button>
+			<button id="split_point_button" class="toolButton"><img src="static/img/icones_toolbox/icone_split_point.png" class="imgToolbox" alt="splitbuttonpng"></button>
+			<button id="flip_edge_button" class="toolButton"><img src="static/img/icones_toolbox/icone_flip_edge.png" class="imgToolbox" alt="flipbuttonpng"></button>
+		</div>
+	</body>
+</html>
