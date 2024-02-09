@@ -13,6 +13,12 @@ defaults:
     working-directory: ./Three_js_object_modeler
 
 jobs:
+  check_env:
+  
+    runs-on: ubuntu-latest
+    steps:
+    - run: ls .
+    
   build:
 
     runs-on: ubuntu-latest
