@@ -10,7 +10,7 @@ on:
     branches: [ "main" ]
 defaults:
   run:
-    working-directory: ./Three_js_object_modeler
+    working-directory: Three_js_object_modeler
 
 jobs:
   check_env:
