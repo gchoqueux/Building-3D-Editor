@@ -8,9 +8,9 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-defaults:
-  run:
-    working-directory: Three_js_object_modeler
+#defaults:
+#  run:
+#    working-directory: Three_js_object_modeler
 
 jobs:
   check_env:
