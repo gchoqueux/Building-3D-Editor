@@ -2,89 +2,76 @@ import matrix from 'matrix-js';
 import * as Utils from './utils/utils'
 import * as GeomUtils from './utils/3DGeometricComputes'
 import { Point3D, Polygon } from './CityGMLGeometricModel';
+import { SceneBuilder } from './Builder';
+import { HalfEdgeData } from './GeometricalProxy';
 
 class Controller{
-    constructor(vertexData, triangleData, faceData, pointData, edgeData, halfEdgeData, geometricalModel, LoD){
-        this.vertexData   = vertexData;
-        this.triangleData = triangleData;
+    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material){
+
         this.faceData     = faceData;
         this.pointData    = pointData;
-        this.edgeData     = edgeData;
         this.halfEdgeData = halfEdgeData;
+        this.edgeData     = edgeData;
 
-        this.geometricalModel = geometricalModel;
+        this.sceneBuilder = new SceneBuilder();
+
+        //this.geometricalModel = geometricalModel;
         this.LoD = LoD;
         //On calcule la flippabilité des arrêtes
         for(let i=0; i<this.edgeData.count; i++){
-            if(this.edgeData.halfEdgeIndex[2*i]!=null){
-                this.edgeData.flipable[i] = this.isflipable(i);
-            }
+            this.edgeData.flipable[i] = this.isflipable(i);
         }
+        this.material = material;
+        this.sceneBuilder.build(this, this.material);
+   
+        this.vertexData = this.sceneBuilder.getScene();
+
     }
 
     //callback Functions
     onChange(){
-        //On recalcule la flippabilité des arrêtes
+        //On recalcul la flippabilité des arrêtes
         for(let i=0; i<this.edgeData.count; i++){
-            if(this.edgeData.halfEdgeIndex[2*i]!=null){
-                this.edgeData.flipable[i] = this.isflipable(i);
-            }
+            this.edgeData.flipable[i] = this.isflipable(i);
         }
+        //Recalcul du nombre de faces que chaque point touche
+        for(let i=0; i<this.pointData.count; i++){
+            this.pointData.nbAdjacentFaces[i]=this.findAdjacentFaces(i).length;
+        }
+        this.updateScene();
+   
+        this.vertexData = this.sceneBuilder.getScene();
 
+    }
+
+    rebuildScene(){
+        this.sceneBuilder.build(this, this.material);
+    }
+
+    updateScene(){
+        this.sceneBuilder.update(this, this.material);
     }
 
 
 
 
     //Manipulation functions
-    faceShift(faceId, delta){
-        let planeEquation = this.faceData.planeEquation[faceId];
-        let n = Utils.normalize(planeEquation.slice(0,3));
-
-        let delta_v = [delta*n[0],delta*n[1],delta*n[2]];
-
-        //On remets à false le tableau moving, qui sert à désigner les points 3D concernés par le shift
-        for (let i=0; i<this.pointData.count; i++){
-            this.pointData.moving[i] = false;
-        }
-
-        //ensuite on mets à true les attributs des points concernés par le shift
-        for(let i=0; i<this.vertexData.count; i++){
-            if(this.vertexData.fIndex.getX(i)==faceId){
-                let p = this.vertexData.pIndex.getX(i);
-                this.pointData.moving[p] = true;
-            }
-        }
-
-        //Enfin, on bouge les vertex associés
-        for(let i=0; i<this.vertexData.count; i++){
-            let p = this.vertexData.pIndex.getX(i);
-            
-            if(this.pointData.moving[p]){
-                let coord    = this.vertexData.coords.getXYZ(i);
-                let newCoord = [coord[0]+delta_v[0],coord[1]+delta_v[1],coord[2]+delta_v[2]];
-                this.vertexData.coords.setXYZ(i, newCoord[0], newCoord[1], newCoord[2]);
-                this.faceData.center[3*faceId  ]+=delta_v[0];
-                this.faceData.center[3*faceId+1]+=delta_v[1];
-                this.faceData.center[3*faceId+2]+=delta_v[2];
-            }
-        }
-        this.vertexData.applyChanges();
-
-        //ToDo : recalculer les equations de plan
-
-    }
-
-
     faceShift2(faceId, delta){
         
 
+        //On commence par faire un split sur les points quadruples
+        for(let i=0; i<this.pointData.count; i++){
+            let adjFaces = this.findAdjacentFaces(i);
+            if(adjFaces.includes(faceId)&&adjFaces.length==4){
+                this.splitPointOnMvt(i, faceId);
+            }
+        }
 
         let faces = [];
         let able_to_shift = true;
         for(let i=0; i<this.pointData.count; i++){
             faces.push(this.findAdjacentFaces(i));
-            if(faces[i].includes(faceId)&&faces[i].length!=3){
+            if(faces[i].includes(faceId)&&faces[i].length>=4){
                 able_to_shift=false;
             }
 
@@ -96,33 +83,7 @@ class Controller{
 
             if(delta>tmin && delta<tmax){
                 let [a,b,c,d] = this.faceData.planeEquation[faceId];
-
-                
-
                 this.faceData.planeEquation[faceId][3] -= delta*(a*a+b*b+c*c);
-                for(let i=0; i<this.pointData.count; i++){
-                    //console.log(i, faces);
-                    if(faces[i].includes(faceId)){
-                        //Pour l'instant on ne traite que les points ayant 3 faces
-                        //console.log(faceId,i, faces);
-                        if(faces[i].length==3){
-                            let fEquation1 = this.faceData.planeEquation[faces[i][0]];
-                            let fEquation2 = this.faceData.planeEquation[faces[i][1]];
-                            let fEquation3 = this.faceData.planeEquation[faces[i][2]];  
-                            let A = matrix([fEquation1.slice(0,3),fEquation2.slice(0,3),fEquation3.slice(0,3)]);
-                            //console.log(A());
-                            let D = matrix([[-fEquation1[3]],[-fEquation2[3]],[-fEquation3[3]]]);
-                            //console.log(D());
-                            let p = matrix(A.inv()).prod(D);
-                            p = matrix(p).trans()[0];
-                            //console.log(i, p);
-                            this.updatePoint(i, p);
-                        }
-                    }
-                }
-                this.updateFaceCenter(faceId);
-        
-                this.vertexData.applyChanges();
             }
         }
 
@@ -130,58 +91,17 @@ class Controller{
     }
 
     findAdjacentFaces(pointId){
-        let firstVIndex = this.pointData.vIndex[pointId];
-        let faces  = [this.vertexData.fIndex.getX(firstVIndex)];
-        let oldVIndex_1 = firstVIndex;
-        let oldVIndex_2 = firstVIndex;
-
-        let vIndex1 = this.vertexData.vIndex.getX(firstVIndex);
-        let vIndex2 = this.vertexData.vIndex.getY(firstVIndex);
-        let ended = false;
-        while(!ended){
-            /*if(pointId==2||pointId==1){
-                console.log(pointId + ': '+vIndex1+' | '+vIndex2);
-            }*/
-            
-            let face1 = this.vertexData.fIndex.getX(vIndex1);
-            let face2 = this.vertexData.fIndex.getX(vIndex2);
-   
-            if(!faces.includes(face1)){
-                faces.push(face1);
-            }
-            if(!faces.includes(face2)){
-                faces.push(face2);
-            }
-
-            
-            
-            //On cherche les points suivants dans la rotation
-            if(this.vertexData.vIndex.getX(vIndex1)==oldVIndex_1){
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getY(vIndex1);
-            }
-            else{
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getX(vIndex1);
-            }
-            if(this.vertexData.vIndex.getX(vIndex2)==oldVIndex_2){
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getY(vIndex2);
-            }
-            else{
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getX(vIndex2);
-            }
-
-            //On a fini lorsque la rotation gauche et la droite se finissent, cad lorsque
-            //les 2 vIndex sont égaux, ou lorsque qu'ils valent l'ancienne valeur de l'autre
-            //(v1old = v2 et v2old = v1)
-            ended = (oldVIndex_1 == oldVIndex_2)||(vIndex1==oldVIndex_2);
-            
-
-        }
+        let faces = [];
+        let he_0 = this.pointData.heIndex[pointId];
+        let he = he_0;
+        do{
+            //console.log(pointId, he);
+            let face_id = this.halfEdgeData.fIndex[he];
+            faces = Utils.mergeListsWithoutDoubles(faces, [face_id]);
+            he = this.halfEdgeData.opposite(he);
+            he = this.halfEdgeData.next(he);
+        }while(he!=he_0)
         return faces;
-
     }
 
     /**
@@ -191,101 +111,31 @@ class Controller{
      * Updates all the vertices coordinates corresponding to the given point id.
      */
     updatePoint(pointId, newCoord){
-        let [x,y,z] = newCoord;
-        let firstVIndex = this.pointData.vIndex[pointId];
-        let oldVIndex_1 = firstVIndex;
-        let oldVIndex_2 = firstVIndex;
-        this.vertexData.coords.setXYZ(firstVIndex,x,y,z);
-        let vIndex1 = this.vertexData.vIndex.getX(firstVIndex);
-        let vIndex2 = this.vertexData.vIndex.getY(firstVIndex);
-        let ended = false;
-        while(!ended){
-            this.vertexData.coords.setXYZ(vIndex1,x,y,z);
-            this.vertexData.coords.setXYZ(vIndex2,x,y,z);
-            //console.log(pointId + ': '+vIndex1+' | '+vIndex2+' |||| '+oldVIndex_1+' | '+oldVIndex_2);
-            //On cherche les points suivants dans la rotation
-            if(this.vertexData.vIndex.getX(vIndex1)==oldVIndex_1){
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getY(vIndex1);
-            }
-            else{
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getX(vIndex1);
-            }
-            if(this.vertexData.vIndex.getX(vIndex2)==oldVIndex_2){
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getY(vIndex2);
-            }
-            else{
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getX(vIndex2);
-            }
-
-
-            //On a fini lorsque la rotation gauche et la droite se finissent, cad lorsque
-            //les 2 vIndex sont égaux, ou lorsque qu'ils valent l'ancienne valeur de l'autre
-            //(v1old = v2 et v2old = v1)
-            ended = (oldVIndex_1 == oldVIndex_2)||(vIndex1==oldVIndex_2);
-            
-
-        }
-        this.vertexData.applyChanges();
+        this.pointData.coords[pointId] = newCoord;
+        //Update faces plane equations
 
     }
 
-
-
-
-
-    
     /**
-     * 
-     * @param {int} pointId the id of the point that will be updated
-     * @param {String} attributeName The name of the attribute to update
-     * @param {*} newValue The new value of the attribute
-     * Updates all the vertices coordinates corresponding to the given point id.
+     * TODO : Passer à un calcul pour n équations de plans
+     * @param {Array[float]} fEquation1 
+     * @param {Array[float]} fEquation2 
+     * @param {Array[float]} fEquation3 
+     * @returns 
      */
-    updatePointAttribute(pointId, attributeName, newValue){
-        let [x,y,z] = newCoord;
-        let firstVIndex = this.pointData.vIndex[pointId];
-        let oldVIndex_1 = firstVIndex;
-        let oldVIndex_2 = firstVIndex;
-        this.vertexData[attributeName].setX(firstVIndex,newValue);
-        let vIndex1 = this.vertexData.vIndex.getX(firstVIndex);
-        let vIndex2 = this.vertexData.vIndex.getY(firstVIndex);
-        let ended = false;
-        while(!ended){
-            this.vertexData[attributeName].setX(vIndex1,newValue);
-            this.vertexData[attributeName].setX(vIndex2,newValue);
-            //console.log(pointId + ': '+vIndex1+' | '+vIndex2+' |||| '+oldVIndex_1+' | '+oldVIndex_2);
-            //On cherche les points suivants dans la rotation
-            if(this.vertexData.vIndex.getX(vIndex1)==oldVIndex_1){
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getY(vIndex1);
-            }
-            else{
-                oldVIndex_1 = vIndex1;
-                vIndex1 = this.vertexData.vIndex.getX(vIndex1);
-            }
-            if(this.vertexData.vIndex.getX(vIndex2)==oldVIndex_2){
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getY(vIndex2);
-            }
-            else{
-                oldVIndex_2 = vIndex2;
-                vIndex2 = this.vertexData.vIndex.getX(vIndex2);
-            }
-
-
-            //On a fini lorsque la rotation gauche et la droite se finissent, cad lorsque
-            //les 2 vIndex sont égaux, ou lorsque qu'ils valent l'ancienne valeur de l'autre
-            //(v1old = v2 et v2old = v1)
-            ended = (oldVIndex_1 == oldVIndex_2)||(vIndex1==oldVIndex_2);
-            
-
-        }
-        this.vertexData.applyChanges();
-
+    computeCoords(point_id){
+        let faces = this.findAdjacentFaces(point_id);
+        let fEquation1 = this.faceData.planeEquation[faces[0]];
+        let fEquation2 = this.faceData.planeEquation[faces[1]];
+        let fEquation3 = this.faceData.planeEquation[faces[2]];  
+        let A = matrix([fEquation1.slice(0,3),fEquation2.slice(0,3),fEquation3.slice(0,3)]);
+        //console.log(A());
+        let D = matrix([[-fEquation1[3]],[-fEquation2[3]],[-fEquation3[3]]]);
+        //console.log(D());
+        let p = matrix(A.inv()).prod(D);
+        p = matrix(p).trans()[0];
+        //console.log(point_id, p);
+        return p;
     }
 
 
@@ -295,7 +145,7 @@ class Controller{
             this.faceData.changeSelectedFace(-1, material);
         }
         else{
-            let newFaceId = this.triangleData.fIndex[triangleId];
+            let newFaceId = this.sceneBuilder.triangleData.fIndex[triangleId];
             this.faceData.changeSelectedFace(newFaceId, material);
         }
     }
@@ -308,40 +158,33 @@ class Controller{
         this.edgeData.changeSelectedEdge(e_id, material);
     }
 
-    updateFaceCenter(faceID){
-        let [cx,cy,cz]=[0,0,0];
+    /*updateFaceCenter(faceID){
+        let he_0 = this.faceData.hExtIndex;
+        let [cx,cy,cz]= [0,0,0];
         let n=0;
-        let visited_points = [];
-        for(let i=0; i<this.vertexData.coords.count; i++){
-            let p_id = this.vertexData.pIndex.getX(i);
-            if(!visited_points.includes(p_id)&&this.vertexData.fIndex.getX(i)==faceID){
-                visited_points.push(p_id);
-                let [x,y,z] = this.vertexData.coords.getXYZ(i);
-                cx+=x;
-                cy+=y;
-                cz+=z;
-                n+=1;
-            }
-        }
-        this.faceData.center[3*faceID  ] = cx/n;
-        this.faceData.center[3*faceID+1] = cy/n;
-        this.faceData.center[3*faceID+2] = cz/n;
-    }
+        let he = he_0;
+        do{
+
+        }while(he!=he_0)
+        
+    }*/
 
 
     findTValidityInterval(fIndex){
         let tmax=[];
         let tmin=[];
+        //TODO : réécrire sans triangles 
         let paramPlanM = this.faceData.planeEquation[fIndex];
-        for(let i=0; i<this.triangleData.fIndex.length; i++){
-            if(this.triangleData.fIndex[i]==fIndex){
-                let v1=this.triangleData.vIndex[3*i  ];
-                let v2=this.triangleData.vIndex[3*i+1];
-                let v3=this.triangleData.vIndex[3*i+2];
+        //On vérifie que les triangles ne s'applatissent pas
+        for(let i=0; i<this.sceneBuilder.triangleData.fIndex.length; i++){
+            if(this.sceneBuilder.triangleData.fIndex[i]==fIndex){
+                let p1=this.sceneBuilder.triangleData.pIndex[3*i  ];
+                let p2=this.sceneBuilder.triangleData.pIndex[3*i+1];
+                let p3=this.sceneBuilder.triangleData.pIndex[3*i+2];
 
-                let faces1 = this.findAdjacentFaces(this.vertexData.pIndex.getX(v1));
-                let faces2 = this.findAdjacentFaces(this.vertexData.pIndex.getX(v2));
-                let faces3 = this.findAdjacentFaces(this.vertexData.pIndex.getX(v3));
+                let faces1 = this.findAdjacentFaces(p1);
+                let faces2 = this.findAdjacentFaces(p2);
+                let faces3 = this.findAdjacentFaces(p3);
 
                 
                 faces1.splice(faces1.indexOf(fIndex),1);
@@ -381,12 +224,13 @@ class Controller{
             }
         }
 
+        //On vérifie également qu'on ne traverse pas un autre plan
         let [a,b,c,d] = paramPlanM;
-        for(let i=0; i<this.pointData.vIndex.length; i++){
+        for(let i=0; i<this.pointData.count; i++){
             let faces = this.findAdjacentFaces(i);
             
             if(faces.indexOf(fIndex)==-1){
-                let [x,y,z] = this.vertexData.coords.getXYZ(this.pointData.vIndex[i]);
+                let [x,y,z] = this.computeCoords(i);
                 let t_lim = a*x+b*y+c*z+d;
                 if(t_lim>=0){
                     tmax.push(t_lim);
@@ -408,8 +252,55 @@ class Controller{
      * @param {int} f_id 
      * @param {float} shift 
      */
-    splitPointOnMvt(p_id, f_id, shift){
+    splitPointOnMvt(p_id, face_id){
+        let h = this.pointData.heIndex[p_id];
+        while(this.halfEdgeData.fIndex[h]!=face_id){
+            h = this.halfEdgeData.opposite(h);
+            h = this.halfEdgeData.next(h);
+        }
+        
+        //We get the usefull indices
+        let h_p = this.halfEdgeData.previous(h);
+        let h_po = this.halfEdgeData.opposite(h_p);
+        let h_pop = this.halfEdgeData.previous(h_po);
 
+        let h_o = this.halfEdgeData.opposite(h);
+        let h_on = this.halfEdgeData.next(h_o);
+
+        let f1_id = this.halfEdgeData.fIndex[h_po];
+        let f2_id = this.halfEdgeData.fIndex[h_on];
+
+
+
+        //Create the new edge and half edges
+        let h1_id = this.halfEdgeData.count;
+        let h2_id = this.halfEdgeData.count+1;
+        let e_id  = this.halfEdgeData.count;
+        let p1_id = p_id;
+        let p2_id = this.pointData.count;
+
+        this.edgeData.add(h1_id);
+        this.pointData.add(h2_id);
+        this.halfEdgeData.add(p1_id,h2_id,h_po,f1_id,e_id)//add h1
+        this.halfEdgeData.add(p2_id,h1_id,h_on,f2_id,e_id)//add h2
+
+        //Update of the other half edges
+        this.halfEdgeData.nextIndex[h_pop] = h1_id;
+        this.halfEdgeData.nextIndex[h_o]   = h2_id;
+        this.halfEdgeData.pIndex[h]        = p2_id;
+        this.halfEdgeData.pIndex[h_po]     = p2_id;
+
+        //update the point splitted
+        if(this.pointData.heIndex[p1_id]==h || this.pointData.heIndex[p1_id]==h_po){
+            this.pointData.heIndex[p1_id] = h1_id;
+        }
+
+
+        //Update of the graphical data of p2
+        this.pointData.coords[p2_id] = this.computeCoords(p2_id);
+        this.pointData.nbAdjacentFaces[p2_id] = this.findAdjacentFaces(p2_id).length;
+        
+        
     }
 
     /**
@@ -421,13 +312,11 @@ class Controller{
     isflipable(edge_id){
         let flipable = false;
 
-        let hf1 = this.edgeData.halfEdgeIndex[2*edge_id];
+        let he1 = this.edgeData.heIndex[edge_id];
+        let he2 = this.halfEdgeData.opposite(he1);
         
-        let v1_id = this.halfEdgeData.vIndex[2*hf1];
-        let v2_id = this.halfEdgeData.vIndex[2*hf1+1];
-
-        let p1_id = this.vertexData.pIndex.getX(v1_id);
-        let p2_id = this.vertexData.pIndex.getX(v2_id);
+        let p1_id = this.halfEdgeData.pIndex[he1];
+        let p2_id = this.halfEdgeData.pIndex[he2];
 
         let faces1 = this.findAdjacentFaces(p1_id);
         let faces2 = this.findAdjacentFaces(p2_id);
@@ -464,7 +353,6 @@ class Controller{
 
             if(flipable){
                 //Faces diminuées
-                console.log(new_point1,new_point2);
                 let decreased_face1 = Utils.removeElements(faces, new_faces1)[0];
                 let decreased_face2 = Utils.removeElements(faces, new_faces2)[0];
 
@@ -472,6 +360,7 @@ class Controller{
                 let [exterior_decreased_face1,interior_decreased_face1] = this.getFaceBorders(decreased_face1);
                 let [exterior_decreased_face2,interior_decreased_face2] = this.getFaceBorders(decreased_face2);
 
+                
                 let new_exterior_decreased_face1 = Utils.removeElements(exterior_decreased_face1, [p1_id]);
                 let new_exterior_decreased_face2 = Utils.removeElements(exterior_decreased_face2, [p2_id]);
 
@@ -548,8 +437,7 @@ class Controller{
     computeBorderCoords(pointIdList){
         let border_coords = [];
         for (let i=0; i<pointIdList.length; i++){
-            let v_id = this.pointData.vIndex[pointIdList[i]];
-            let coord = this.vertexData.coords.getXYZ(v_id);
+            let coord = this.computeCoords(pointIdList[i]);
             border_coords.push(coord);
         }
         return(border_coords);
@@ -561,121 +449,83 @@ class Controller{
      * @param {int} edge_id 
      */
     edgeFlip(edge_id){
+        console.log(edge_id);
         if(this.edgeData.flipable[edge_id]){
-            let hf1 = this.edgeData.halfEdgeIndex[2*edge_id];
-            
-            let v1_id = this.halfEdgeData.vIndex[2*hf1];
-            let v2_id = this.halfEdgeData.vIndex[2*hf1+1];
+            //edge selected
+            let he = this.edgeData.heIndex[edge_id];
+            let he_o = this.halfEdgeData.opposite(he);
 
-            let p1_id = this.vertexData.pIndex.getX(v1_id);
-            let p2_id = this.vertexData.pIndex.getX(v2_id);
+            //neighbour edge 1
+            let he_n = this.halfEdgeData.next(he);
+            let he_no = this.halfEdgeData.opposite(he_n);
 
-            let faces1 = this.findAdjacentFaces(p1_id);
-            let faces2 = this.findAdjacentFaces(p2_id);
+            //neighbour edge 2
+            let he_op = this.halfEdgeData.previous(he_o);
+            let he_opo = this.halfEdgeData.opposite(he_op);
 
+            //neighbour edge 3
+            let he_on = this.halfEdgeData.next(he_o);
+            let he_ono = this.halfEdgeData.opposite(he_on);
 
-            let commonFaces = Utils.getCommonElts(faces1, faces2);
+            //neighbour edge 4
+            let he_p = this.halfEdgeData.previous(he);
+            let he_po = this.halfEdgeData.opposite(he_p);
 
-            let faces = Utils.mergeListsWithoutDoubles(faces1, faces2);
+            let face_1 = this.halfEdgeData.fIndex[he];
+            let face_2 = this.halfEdgeData.fIndex[he_o];
+            let face_3 = this.halfEdgeData.fIndex[he_no];
+            let face_4 = this.halfEdgeData.fIndex[he_ono];
 
-            let newFaces = Utils.removeElements(faces, commonFaces);
+            let p1 = this.halfEdgeData.pIndex[he];
+            let p2 = this.halfEdgeData.pIndex[he_o];
 
-            console.log(commonFaces, newFaces, faces);
-
-            
-
-            //On ne prend en compte que les points d'arrité 3 pour l'instant
-            if(newFaces.length == 2){
-                let new_faces1 = Utils.mergeListsWithoutDoubles(newFaces,[commonFaces[0]]);
-                let new_faces2 = Utils.mergeListsWithoutDoubles(newFaces,[commonFaces[1]]);
-                
-                //console.log(new_faces1, new_faces2);
-
-                let new_face1_equation = this.faceData.planeEquation[new_faces1[0]];
-                let new_face2_equation = this.faceData.planeEquation[new_faces1[1]];
-                let new_face3_equation = this.faceData.planeEquation[new_faces1[2]];
-
-                let new_point1 = GeomUtils.computeIntersectionPoint(new_face1_equation,new_face2_equation,new_face3_equation);
-
-
-
-                let new_face4_equation = this.faceData.planeEquation[new_faces2[0]];
-                let new_face5_equation = this.faceData.planeEquation[new_faces2[1]];
-                let new_face6_equation = this.faceData.planeEquation[new_faces2[2]];
-
-                let new_point2 = GeomUtils.computeIntersectionPoint(new_face4_equation,new_face5_equation,new_face6_equation);
-
-                this.updatePoint(p1_id, new_point1);
-                this.updatePoint(p2_id, new_point2);
-
-                console.log(p1_id, new_point1);
-                console.log(p2_id, new_point2);
-
-                let decreased_face1 = Utils.removeElements(faces, new_faces1)[0];
-                let decreased_face2 = Utils.removeElements(faces, new_faces2)[0];
-
-                console.log(decreased_face1, decreased_face2);
-                let [exterior_decreased_face1,interior_decreased_face1] = this.getFaceBorders(decreased_face1);
-                let [exterior_decreased_face2,interior_decreased_face2] = this.getFaceBorders(decreased_face2);
-
-                let new_exterior_decreased_face1 = Utils.removeElements(exterior_decreased_face1, [p1_id]);
-                let new_exterior_decreased_face2 = Utils.removeElements(exterior_decreased_face2, [p2_id]);
-
-                let new_interior_decreased_face1 = Utils.removeElements(interior_decreased_face1, [p1_id]);
-                let new_interior_decreased_face2 = Utils.removeElements(interior_decreased_face2, [p2_id]);
-                
-                
-                let triang_rm_f1 = this.triangulateNewface(decreased_face1, new_exterior_decreased_face1, new_interior_decreased_face1);
-                let triang_rm_f2 = this.triangulateNewface(decreased_face2, new_exterior_decreased_face2, new_interior_decreased_face2);
-
-
-                //On trouve quelle face possède déjà quel point
-                // point 1 : (old_faces_1 INTER new_faces_1)\old_common_faces
-                // point 2 : (old_faces_2 INTER new_faces_2)\old_common_faces
-                let increased_face1 = Utils.removeElements(Utils.getCommonElts(faces1, new_faces1),commonFaces)[0];
-                let increased_face2 = Utils.removeElements(Utils.getCommonElts(faces2, new_faces2),commonFaces)[0];
-
-                
-                let [exterior_increased_face1,interior_increased_face1] = this.getFaceBorders(increased_face1);
-                let [exterior_increased_face2,interior_increased_face2] = this.getFaceBorders(increased_face2);
-
-
-                this.addPointInBorder(exterior_increased_face1, p2_id, new_faces2, p1_id);
-                this.addPointInBorder(exterior_increased_face2, p1_id, new_faces1, p2_id);
-
-
-
-                this.addPointInBorder(interior_increased_face1, p2_id, new_faces2, p1_id);
-                this.addPointInBorder(interior_increased_face2, p1_id, new_faces1, p2_id);
-
-                let triang_inc_f1 = this.triangulateNewface(increased_face1, exterior_increased_face1, interior_increased_face1);
-                let triang_inc_f2 = this.triangulateNewface(increased_face2, exterior_increased_face2, interior_increased_face2);
-
-
-
-                this.changeTriangulation(decreased_face1,triang_rm_f1);
-                this.changeTriangulation(decreased_face2,triang_rm_f2);
-
-                this.changeTriangulation(increased_face1,triang_inc_f1);
-                this.changeTriangulation(increased_face2,triang_inc_f2);
-
-
-                /*console.log(decreased_face1,new_exterior_decreased_face1);
-                console.log(decreased_face2,new_exterior_decreased_face2);
-                console.log(increased_face1,exterior_increased_face1);
-                console.log(increased_face2,exterior_increased_face2);*/
-
-                this.recomputeTrianglesNeighbourhood();
-                this.recomputeVerticesNeighbourhood();
-                this.recomputeEdges();
-
-                console.log(p1_id,":",this.findAdjacentFaces(p1_id));
-                console.log(p2_id,":",this.findAdjacentFaces(p2_id));
-
-                console.log("=========================");
+            //Faces update
+            if(this.faceData.hExtIndex[face_1] == he){
+                this.faceData.hExtIndex[face_1] = he_n;
             }
-        }
+            else{
+                for(let i=0; i<this.faceData.hIntIndices[face_1].length; i++){
+                    if(this.faceData.hIntIndices[face_1][i] == he){
+                        this.faceData.hIntIndices[face_1][i] = he_n;
+                        break;
+                    }
+                }
+            }
+            if(this.faceData.hExtIndex[face_2] == he_o){
+                this.faceData.hExtIndex[face_2] = he_on;
+            }
+            else{
+                for(let i=0; i<this.faceData.hIntIndices[face_2].length; i++){
+                    if(this.faceData.hIntIndices[face_2][i] == he_o){
+                        this.faceData.hIntIndices[face_2][i] = he_on;
+                        break;
+                    }
+                }
+            }
 
+            //Points update
+            if(this.pointData.heIndex[p1] == he_po){
+                this.pointData.heIndex[p1] = he;
+            }
+            if(this.pointData.heIndex[p2] == he_opo){
+                this.pointData.heIndex[p2] = he_o;
+            }
+
+            //Half edges update
+            this.halfEdgeData.fIndex[he] = face_4;
+            this.halfEdgeData.fIndex[he_o] = face_3;
+
+            this.halfEdgeData.nextIndex[he] = he_po;
+            this.halfEdgeData.nextIndex[he_o] = he_opo;
+            this.halfEdgeData.nextIndex[he_no] = he_o;
+            this.halfEdgeData.nextIndex[he_ono] = he;
+            this.halfEdgeData.nextIndex[he_p] = he_n;
+            this.halfEdgeData.nextIndex[he_op] = he_on;
+
+            this.halfEdgeData.pIndex[he_opo] = p1;
+            this.halfEdgeData.pIndex[he_po] = p2;
+
+        }
     }
 
 
@@ -740,160 +590,7 @@ class Controller{
 
     }
 
-
-
-    changeTriangulation(face_id, newTriangulation){
-        console.log(face_id, "---------------");
-        for(let i=0; i<this.triangleData.count; i++){
-            if(this.triangleData.fIndex[i]==face_id){
-                this.removeTriangle(i);
-                i--;
-                //break;
-            }
-        }
-
-        let nt = newTriangulation.length/3;
-        for (let i=0; i<nt; i++){
-            let id_p1 = newTriangulation[3*i  ];
-            let id_p2 = newTriangulation[3*i+1];
-            let id_p3 = newTriangulation[3*i+2];
-            /*console.log(this.pointData.vIndex);
-            console.log(this.vertexData.pIndex.array);*/
-            this.addTriangle([id_p1, id_p2, id_p3],face_id);
-        }
-        console.log("end ---------------");
-    }
-
-
-    /**
-     * 
-     * @param {Array[int]} points The indices of the 3 points composing the triangle
-     * @param {int} face_id The id of the face to which the triangle belong
-     */
-    addTriangle(points, face_id){
-        let triangleNeighbours = this.findTriangleNeighbours(points);
-
-
-        let [p1,p2,p3] = points;
-        let i1 = this.pointData.vIndex[p1];
-        let coord1 = this.vertexData.coords.getXYZ(i1);
-
-        let i2 = this.pointData.vIndex[p2];
-        let coord2 = this.vertexData.coords.getXYZ(i2);
-
-        let i3 = this.pointData.vIndex[p3];
-        let coord3 = this.vertexData.coords.getXYZ(i3);
-
-        let normal = Utils.normalize(this.faceData.planeEquation[face_id].slice(0,3));
-        let uv1 = this.vertexData.uv.getXY(i1);
-        let uv2 = this.vertexData.uv.getXY(i2);
-        let uv3 = this.vertexData.uv.getXY(i3);
-
-        let e1_id_1 = Utils.computeEdgeRank(p1,p2);
-        let e2_id_1 = Utils.computeEdgeRank(p3,p1);
-
-        let e1_id_2 = Utils.computeEdgeRank(p2,p3);
-        let e2_id_2 = Utils.computeEdgeRank(p1,p2);
-
-        let e1_id_3 = Utils.computeEdgeRank(p3,p1);
-        let e2_id_3 = Utils.computeEdgeRank(p2,p3);
-
-
-        /*let neighbours_v1 = this.findVertexNeighbours(p1,triangleNeighbours, 0);
-        let neighbours_v2 = this.findVertexNeighbours(p2,triangleNeighbours, 1);
-        let neighbours_v3 = this.findVertexNeighbours(p3,triangleNeighbours, 2);
-        */
-
-        this.vertexData.add(coord1, normal, uv1, face_id, p1, /*neighbours_v1*/[-1,-1], e1_id_1, e2_id_1);
-        this.vertexData.add(coord2, normal, uv2, face_id, p2, /*neighbours_v2*/[-1,-1], e1_id_2, e2_id_2);
-        this.vertexData.add(coord3, normal, uv3, face_id, p3, /*neighbours_v3*/[-1,-1], e1_id_3, e2_id_3);
-        
-        console.log("points",p1,p2,p3);
-        console.log("vertices",i1,i2,i3);
-
-        this.triangleData.addTriangle(this.vertexData.count-3,this.vertexData.count-2,this.vertexData.count-1,face_id, triangleNeighbours);
-
-        //mise à jour des triangles voisins
-
-        /*for(let i=0; i<3; i++){
-            let t_id = triangleNeighbours[i];
-            let v1 = this.triangleData.vIndex[3*t_id];
-            let v2 = this.triangleData.vIndex[3*t_id+1];
-            let v3 = this.triangleData.vIndex[3*t_id+2];
-
-            let t_p1 = this.vertexData.pIndex.getX(v1);
-            let t_p2 = this.vertexData.pIndex.getX(v2);
-            let t_p3 = this.vertexData.pIndex.getX(v3);
-
-
-            let i1 = points.indexOf(t_p1);
-            let i2 = points.indexOf(t_p2);
-            let i3 = points.indexOf(t_p3);
-
-            let index = [i1,i2,i3].indexOf(-1);
-            this.triangleData.tIndex[3*t_id+index] = this.triangleData.count-1;
-        
-        }*/
-
-    }
-
-
-    removeTriangle(t_id){
-        let f_id = this.triangleData.fIndex[t_id];
-
-        
-        let v1 = this.triangleData.vIndex[3*t_id];
-        let p1 = this.vertexData.pIndex.getX(v1);
-        //console.log("########", v1,p1);
-        this.removeVertex(v1);
-
-        let v2 = this.triangleData.vIndex[3*t_id+1];
-        let p2 = this.vertexData.pIndex.getX(v2);
-        //console.log("########", v2,p2);
-        this.removeVertex(v2);
-
-        let v3 = this.triangleData.vIndex[3*t_id+2];
-        let p3 = this.vertexData.pIndex.getX(v3);
-        //console.log("########", v3,p3);
-        this.removeVertex(v3);
-
-
-        //console.log(this.vertexData.coords);
-
-
-        //Ensuite on supprime le triangle
-        this.triangleData.remove(t_id);
-
-        //Puis on met à jour les faces
-        let new_face_tId = -1;
-        for(let i=0; i<this.triangleData.count; i++){
-            if(this.triangleData.fIndex[i]==f_id){
-                new_face_tId = this.triangleData.fIndex[i];
-                break;
-            }
-        }
-        for(let i=0; i<this.faceData.count; i++){
-            if(this.faceData.tIndex[i]==t_id){
-                this.faceData.tIndex[i]=new_face_tId; 
-            }
-            if(this.faceData.tIndex[i]>t_id){
-                this.faceData.tIndex[i]-=1; 
-            }
-        }
-        this.faceData.tIndex = new_face_tId;
-
-        //Et enfin on supprime les HalfEdge
-        
-        let hf_id1 = Utils.computeHalfEdgeRank(p1,p2);
-        let hf_id2 = Utils.computeHalfEdgeRank(p2,p3);
-        let hf_id3 = Utils.computeHalfEdgeRank(p3,p1);
-
-        this.removeHalfEdge(hf_id1);
-        this.removeHalfEdge(hf_id2);
-        this.removeHalfEdge(hf_id3);
-        //console.log("end of triangle",t_id);
-
-    }
+    
 
     removeHalfEdge(hf_id){
         let e_id = this.halfEdgeData.eIndex[hf_id];
@@ -979,26 +676,32 @@ class Controller{
     }
 
     getFaceBorders(faceId){
+        return [this.getExterior(faceId),this.getInteriors(faceId)];   
+    }
+
+    getExterior(faceId){
+        let he_0 = this.faceData.hExtIndex[faceId];
         let exterior = [];
-        let interior = [];
-        this.geometricalModel.forEach(building=>{
-            let boundaryThematicSurfaces = building.getBoundary();
-            boundaryThematicSurfaces.forEach(thematicSurface=>{
-                let boundarySurfaces = thematicSurface.getLoD(this.LoD).surfaces;
-                boundarySurfaces.forEach(polygon=>{
-                    if(polygon.id==faceId){
-                        polygon.exterior.positions.forEach(point3D=>{
-                            exterior.push(point3D.id);
-                        });
-                        polygon.interior.positions.forEach(point3D=>{
-                            interior.push(point3D.id);
-                        });
-                    }
-                });
-            });
+        let he = he_0;
+        do{
+            exterior.push(this.halfEdgeData.pIndex[he]);
+            he = this.halfEdgeData.next(he);
+        }while(he!=he_0)
+        return exterior;
+    }
+
+    getInteriors(faceId){
+        let interiors = [];
+        this.faceData.hIntIndices[faceId].forEach(he_0=>{
+            let interior = [];
+            let he = he_0;
+            do{
+                interior.push(this.halfEdgeData.pIndex[he]);
+                he = this.halfEdgeData.next(he);
+            }while(he!=he_0)
+            interiors.push(interior);
         })
-        
-        return [exterior,interior];   
+        return interiors;
     }
 
     addPointInBorder(border, pointId, pointAdjFaces, previousPointId){

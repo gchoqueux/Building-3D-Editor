@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Float32ArrayDynamicBufferAttribute, UInt16ArrayDynamicBufferAttribute, Int16ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 
-class GraphicalModel extends THREE.Mesh{
+/*class GraphicalModel extends THREE.Mesh{
     constructor(threeObject, geometricalModel){
 
         super(threeObject.geometry, threeObject.material);
@@ -96,7 +96,7 @@ class GraphicalModel extends THREE.Mesh{
 
 
     
-}
+}*/
 
 
 
@@ -106,7 +106,7 @@ class GraphicalModel extends THREE.Mesh{
 
 
 class VertexData extends THREE.Mesh{
-    constructor(vertices, normals, uvs, fIndex, pIndex, vIndex, eIndex1, eIndex2, material){
+    constructor(vertices, normals, uvs, fIndex, pIndex, material){
 
         super(new THREE.BufferGeometry() , material);
         
@@ -117,10 +117,31 @@ class VertexData extends THREE.Mesh{
         //ToDo : passer le fIndex en int
         this.fIndex   = new Float32ArrayDynamicBufferAttribute(new Float32Array(fIndex), 1, false);
         this.pIndex   = new Float32ArrayDynamicBufferAttribute(new Float32Array(pIndex), 1, false);
-        this.vIndex   = new Int16ArrayDynamicBufferAttribute(new Int16Array(vIndex), 2, false);
+        /*this.vIndex   = new Int16ArrayDynamicBufferAttribute(new Int16Array(vIndex), 2, false);
         this.eIndex1   = new Float32ArrayDynamicBufferAttribute(new Float32Array(eIndex1), 1, false);
         this.eIndex2   = new Float32ArrayDynamicBufferAttribute(new Float32Array(eIndex2), 1, false);
+        */
+        this.geometry.setAttribute('position', this.coords);
+        this.geometry.setAttribute('normal', this.normal);
+        this.geometry.setAttribute('uv', this.uv);
 
+        this.geometry.setAttribute('fIndex', this.fIndex);
+        this.geometry.setAttribute('pIndex', this.pIndex);
+
+        this.count    = fIndex.length; 
+    }
+
+    update(vertices, normals, uvs, fIndex, pIndex, material){
+        this.coords   = new Float32ArrayDynamicBufferAttribute(new Float32Array(vertices), 3, false);
+        this.normal   = new Float32ArrayDynamicBufferAttribute(new Float32Array(normals), 3, false);
+        this.uv       = new Float32ArrayDynamicBufferAttribute(new Float32Array(uvs), 2, false);
+        //ToDo : passer le fIndex en int
+        this.fIndex   = new Float32ArrayDynamicBufferAttribute(new Float32Array(fIndex), 1, false);
+        this.pIndex   = new Float32ArrayDynamicBufferAttribute(new Float32Array(pIndex), 1, false);
+        /*this.vIndex   = new Int16ArrayDynamicBufferAttribute(new Int16Array(vIndex), 2, false);
+        this.eIndex1   = new Float32ArrayDynamicBufferAttribute(new Float32Array(eIndex1), 1, false);
+        this.eIndex2   = new Float32ArrayDynamicBufferAttribute(new Float32Array(eIndex2), 1, false);
+        */
         this.geometry.setAttribute('position', this.coords);
         this.geometry.setAttribute('normal', this.normal);
         
@@ -128,6 +149,7 @@ class VertexData extends THREE.Mesh{
         this.geometry.setAttribute('pIndex', this.pIndex);
 
         this.count    = fIndex.length; 
+        this.applyChanges();
     }
 
     applyChanges(){
@@ -136,8 +158,8 @@ class VertexData extends THREE.Mesh{
         
         this.geometry.setAttribute('fIndex', this.fIndex);
         this.geometry.setAttribute('pIndex', this.pIndex);
-        this.geometry.setAttribute('eIndex1', this.eIndex1);
-        this.geometry.setAttribute('eIndex2', this.eIndex2);
+        /*this.geometry.setAttribute('eIndex1', this.eIndex1);
+        this.geometry.setAttribute('eIndex2', this.eIndex2);*/
 
         this.geometry.getAttribute("position").needsUpdate = true;
         this.geometry.getAttribute("normal").needsUpdate = true;
@@ -156,9 +178,9 @@ class VertexData extends THREE.Mesh{
         //this.uv.push2Value(uv[0], uv[1]);
         this.fIndex.pushValue([face]);
         this.pIndex.pushValue([point3D]);
-        this.vIndex.pushValue(neighbours);
+        /*this.vIndex.pushValue(neighbours);
         this.eIndex1.pushValue([eIndex1]);
-        this.eIndex2.pushValue([eIndex2]);
+        this.eIndex2.pushValue([eIndex2]);*/
 
         this.count+=1;
         this.applyChanges();
@@ -173,9 +195,9 @@ class VertexData extends THREE.Mesh{
         //this.uv.removeValue(v_id);
         this.fIndex.removeValue(v_id);
         this.pIndex.removeValue(v_id);
-        this.vIndex.removeValue(v_id);
+        /*this.vIndex.removeValue(v_id);
         this.eIndex1.removeValue(v_id);
-        this.eIndex2.removeValue(v_id);
+        this.eIndex2.removeValue(v_id);*/
         this.count-=1;
         //console.log(v_id, this.count);
         for(let i=0; i<this.count; i++){
@@ -199,10 +221,9 @@ class VertexData extends THREE.Mesh{
 
 
 class TriangleData{
-    constructor(fIndex, vIndex, tIndex){
+    constructor(fIndex, pIndex){
         this.fIndex   = fIndex;
-        this.vIndex   = vIndex;
-        this.tIndex   = tIndex;
+        this.pIndex   = pIndex;
         this.count    = fIndex.length; 
     }
     addTriangle(vId1, vId2, vId3, fId, tNeighbours){
@@ -233,10 +254,6 @@ class TriangleData{
                     this.tIndex[i]=-1;
                 }
             } 
-
-            this.tIndex.splice(3*t_id,3);
-
-            this.tIndex.splice(3*t_id,3);
             this.count-=1;
         }
        
@@ -245,4 +262,4 @@ class TriangleData{
 }
 
 
-export {GraphicalModel, TriangleData, VertexData}
+export {/*GraphicalModel,*/ TriangleData, VertexData}

@@ -6,7 +6,7 @@ import { BuildingMaterial, DebugBuildingMaterial } from './materials.js';
 
 import { buildingsJs } from './objectCreation.js';
 
-import { ModelBuilder, SceneBuilder } from './Builder.js';
+import { GeometryBuilder, ModelBuilder, SceneBuilder } from './Builder.js';
 
 import { ToolBar } from './tools.js';
 
@@ -32,7 +32,7 @@ const w = window;
     let buildingsModel = modelBuilder.getBuildings();
     console.log(buildingsModel[0]);
 
-    let sceneBuilder = new SceneBuilder();
+    let geometryBuilder = new GeometryBuilder();
 
     //Pour le debug graphique
     const material_debug = new DebugBuildingMaterial({color:0x00ff00, reflectivity:1, shininess : 60, specular : 0x000000});
@@ -42,18 +42,18 @@ const w = window;
     let material = material_building;
     material_debug.side = THREE.DoubleSide;
     material_building.side = THREE.DoubleSide;
-    sceneBuilder.build(buildingsModel, 3, material);
-
-    let graphicalController = sceneBuilder.getScene();
-    console.log(graphicalController);
+    geometryBuilder.build(buildingsModel, 3);
+    console.log(geometryBuilder);
+    let geometricalController = geometryBuilder.getScene(material);
+    console.log(geometricalController);
     
     //Pour le debug graphique
-    material_debug.uniforms.maxPointId.value = Math.max(...graphicalController.vertexData.pIndex.array);
-    material_debug.uniforms.maxFaceId.value = Math.max(...graphicalController.vertexData.fIndex.array);
+    material_debug.uniforms.maxPointId.value = geometricalController.pointData.count;
+    material_debug.uniforms.maxFaceId.value = geometricalController.faceData.count;
+    
     
 
-
-    let objects = [graphicalController.vertexData];
+    let objects = [geometricalController.vertexData];
 
 
 
@@ -101,7 +101,7 @@ const w = window;
     controls.update();
 
 
-    scene.add(graphicalController.vertexData);
+    scene.add(geometricalController.vertexData);
 
 
     //Ray casting
@@ -146,22 +146,22 @@ const w = window;
     //event listeners
 
 
-    let toolBar = new ToolBar(camera, graphicalController, controls, scene);
+    let toolBar = new ToolBar(camera, geometricalController, controls, scene);
     toolBar.changeTool("Shift");
 
     
 
     function onMove(event){
-        toolBar.onMove(event);
+        toolBar.onMove(event,scene);
     }
     function onMouseUp(event){
-        toolBar.onMouseUp(event);
+        toolBar.onMouseUp(event,scene);
     }
     function onMouseDown(event){
-        toolBar.onMouseDown(event);
+        toolBar.onMouseDown(event,scene);
     }
     function onClick(event){
-        toolBar.onClick(event);
+        toolBar.onClick(event,scene);
     }
 
     document.addEventListener('mousedown', onMouseDown);
@@ -223,6 +223,6 @@ const w = window;
         else{
             material = material_building;
         }
-        graphicalController.changeMaterial(material);
+        geometricalController.changeMaterial(material);
     }
 }

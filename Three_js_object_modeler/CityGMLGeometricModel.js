@@ -231,9 +231,9 @@ class Surface{
 class Polygon extends Surface{
     static maxId = 0;
     static epsilon = 1;
-    constructor(interior, exterior){
+    constructor(interiors, exterior){
         super();
-        this.interior = interior;
+        this.interiors = interiors;
         this.exterior = exterior;
         this.id = Polygon.maxId;
         Polygon.maxId+=1;
@@ -252,12 +252,11 @@ class Polygon extends Surface{
         
         let valid = (this.exterior.size != 0) && this.exterior.checkValidity();
         let plan1 = this.exterior.planeEquation;
-        if(this.interior.size != 0){
-            valid = valid && this.interior.checkValidity();
-            let plan2 = this.interior.planeEquation;
+        this.planeEquation = this.exterior.planeEquation;
+        this.interiors.forEach(interior=>{
+            valid = valid && interior.checkValidity();
+            let plan2 = interior.planeEquation;
 
-            if (this.id==32){
-            }
 
             if(Utils.distance_Pl_Pl(plan1, plan2)<=Polygon.epsilon){
                 this.planeEquation = [(plan1[0]+plan2[0])/2, (plan1[1]+plan2[1])/2,(plan1[2]+plan2[2])/2,(plan1[3]+plan2[3])/2]
@@ -266,25 +265,29 @@ class Polygon extends Surface{
             else{
                 valid = false;
             }
-        }
-        else{
-            this.planeEquation = this.exterior.planeEquation;
-        }
+        })
+        
         return valid;
     }
     triangulate(){
+        let points = this.exterior.positions;
+        this.interiors.forEach(interior=>{
+            points.push(...interior.positions);
+        })
         
-        let points = this.exterior.positions.concat(this.interior.positions);
         
 
         let pointsCoordinates = [];
         points.forEach(point3D=>{
             pointsCoordinates = pointsCoordinates.concat([point3D.x, point3D.y, point3D.z]);
         })
-        let holes=null;
-        if(this.interior.size!=0){
-            holes = [this.exterior.size];
-        }
+        
+        let holes=[];
+        let hole_index = this.exterior.size;
+        this.interiors.forEach(interior=>{
+            holes = [hole_index];
+            hole_index+=interior.size;
+        })
         
         if(this.planeEquation[2]!=0){  
             this.triangulation = Earcut(pointsCoordinates, holes, 3);
@@ -312,13 +315,17 @@ class Polygon extends Surface{
 
         //On réoriente les triangles si ils ne sont pas dans le meme sens que les faces.
         let exterior_ids = [];
-        let interior_ids = [];
+        let interiors_ids = [];
 
         this.exterior.positions.forEach(p=>{
             exterior_ids.push(p.id);
         });
-        this.interior.positions.forEach(p=>{
-            interior_ids.push(p.id);
+        this.interiors.forEach(interior=>{
+            let interior_ids = [];
+            interior.positions.forEach(p=>{
+                interior_ids.push(p.id);
+            });
+            interiors_ids.push(interior_ids);
         });
 
 
@@ -334,11 +341,13 @@ class Polygon extends Surface{
                 this.triangulation[3*i+1] = this.triangulation[3*i+2];
                 this.triangulation[3*i+2] = mem;
             }
-            if(Utils.isSubArray(interior_ids,e1)||Utils.isSubArray(interior_ids,e2)||Utils.isSubArray(interior_ids,e3)){
-                let mem = this.triangulation[3*i+1];
-                this.triangulation[3*i+1] = this.triangulation[3*i+2];
-                this.triangulation[3*i+2] = mem;
-            }
+            interiors_ids.forEach(interior_ids=>{
+                if(Utils.isSubArray(interior_ids,e1)||Utils.isSubArray(interior_ids,e2)||Utils.isSubArray(interior_ids,e3)){
+                    let mem = this.triangulation[3*i+1];
+                    this.triangulation[3*i+1] = this.triangulation[3*i+2];
+                    this.triangulation[3*i+2] = mem;
+                }
+            })
         }
 
         //To Do : vérifier l'orientation relative des triangles
