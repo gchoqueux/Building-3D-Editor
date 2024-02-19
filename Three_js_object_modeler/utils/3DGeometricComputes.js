@@ -205,12 +205,41 @@ function checkAutoIntersection(border){
         let segment1 = [border[i], border[(i+1)%n]];
         for(let j=i+1; j<n; j++){
             let segment2 = [border[j], border[(j+1)%n]];
-            let auto_intersects = intersects(segment1, segment2);
+            auto_intersects = intersects(segment1, segment2);
             if(auto_intersects){
                 break;
             }
         }
         if(auto_intersects){
+            break;
+        }
+    }
+    return auto_intersects;
+}
+
+/**
+ * 
+ * @param {Array[Array[float]]} border 
+ */
+function checkAutoIntersectionWithLogs(border){
+    let n = border.length;
+    let auto_intersects = false;
+    for(let i=0; i<n; i++){
+        let segment1 = [border[i], border[(i+1)%n]];
+        for(let j=i+1; j<n; j++){
+            let segment2 = [border[j], border[(j+1)%n]];
+            auto_intersects = intersects(segment1, segment2);
+            /*if(i==0&&j==1){
+                console.log('intersects : ', intersectsWithLog(segment1, segment2));
+            }*/
+            if(auto_intersects){
+                console.log('SEGMENT',i,j, segment1, segment2);
+                console.log('intersects : ', intersectsWithLog(segment1, segment2));
+                break;
+            }
+        }
+        if(auto_intersects){
+            console.log("BREAK");
             break;
         }
     }
@@ -238,10 +267,18 @@ function intersects(segment1, segment2){
     let p2 = projectPointOnLine(clostestPoint, line2);
 
     if(Utils.norme([p1[0]-p2[0], p1[1]-p2[1],p1[2]-p2[2]])<0.00001){
+        let res = (x1-p1[0])*(x2-p1[0])<=0 && (x3-p1[0])*(x4-p1[0])<=0 &&
+        (y1-p1[1])*(y2-p1[1])<=0 && (y3-p1[1])*(y4-p1[1])<=0 &&
+        (z1-p1[2])*(z2-p1[2])<=0 && (z3-p1[2])*(z4-p1[2])<=0 ;
+        //Il faut aussi vérifier que l'inetrsection n'est pas une jointure entre les segments
+        let d1 = Utils.distance(p1,[x1,y1,z1]);
+        let d2 = Utils.distance(p1,[x2,y2,z2]);
+        let d3 = Utils.distance(p1,[x3,y3,z3]);
+        let d4 = Utils.distance(p1,[x4,y4,z4]);
+        
+        res = res && ((d1>0.000001 && d2>0.000001)||(d3>0.000001 && d4>0.000001));
         return(
-            (x1-p1[0])*(x2-p1[0])<0 && (x3-p1[0])*(x4-p1[0])<0 &&
-            (y1-p1[1])*(y2-p1[1])<0 && (y3-p1[1])*(y4-p1[1])<0 &&
-            (z1-p1[2])*(z2-p1[2])<0 && (z3-p1[2])*(z4-p1[2])<0 
+            res 
         );
     }
     else{
@@ -250,6 +287,53 @@ function intersects(segment1, segment2){
 }
 
  
+/**
+ * 
+ * @param {Array[Array[]]} segment1 
+ * @param {Array[Array[]]} segment2 
+ */
+/*function intersectsWithLog(segment1, segment2){
+    let [[x1,y1,z1],[x2,y2,z2]]=segment1;
+    let [[x3,y3,z3],[x4,y4,z4]]=segment2;
+
+    let v1 = Utils.normalize([x2-x1,y2-y1,z2-z1]);
+    let v2 = Utils.normalize([x4-x3,y4-y3,z4-z3]);
+
+    let line1 = [[x1,y1,z1], v1];
+    let line2 = [[x3,y3,z3], v2];
+
+    let clostestPoint = findClosestPointToNLines(line1, line2);
+    
+    let p1 = projectPointOnLine(clostestPoint, line1);
+    let p2 = projectPointOnLine(clostestPoint, line2);
+
+    
+
+    if(Utils.distance(p1,p2)<0.00001){
+        let res = (x1-p1[0])*(x2-p1[0])<=0 && (x3-p1[0])*(x4-p1[0])<=0 &&
+        (y1-p1[1])*(y2-p1[1])<=0 && (y3-p1[1])*(y4-p1[1])<=0 &&
+        (z1-p1[2])*(z2-p1[2])<=0 && (z3-p1[2])*(z4-p1[2])<=0 ;
+        //Il faut aussi vérifier que l'intersection n'est pas une jointure entre les segments
+        let d1 = Utils.distance(p1,[x1,y1,z1]);
+        let d2 = Utils.distance(p1,[x2,y2,z2]);
+        let d3 = Utils.distance(p1,[x3,y3,z3]);
+        let d4 = Utils.distance(p1,[x4,y4,z4]);
+
+        console.log("P1", p1);
+        console.log("D1", d1);
+        console.log("D2", d2);
+        console.log("D3", d3);
+        console.log("D4", d4);
+        
+        res = res && ((d1>0.000001 && d2>0.000001)||(d3>0.000001 && d4>0.000001));
+        return(
+            res 
+        );
+    }
+    else{
+        return false;
+    }
+}*/
 
 
 

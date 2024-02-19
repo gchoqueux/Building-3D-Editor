@@ -85,6 +85,17 @@ function angle(v1, v2){
     return Math.acos(dotProduct(a,b));
 }
 
+function distance(p1,p2){
+    if(p1.length!=p2.length){
+        console.error("Bad length");
+    }
+    let d2 = 0;
+    for(let i=0; i<p1.length; i++){
+        d2+=(p1[i]-p2[i])*(p1[i]-p2[i]);
+    }
+    return(Math.sqrt(d2));
+}
+
 function distance_Tr_Tr(triangle1, triangle2){
 
     var a1,b1,c1,d1,a2,b2,c2,d2;
@@ -416,4 +427,4 @@ function computeEdgeRank(i,j){
     return this.computeHalfEdgeRank(M,m);
 }
 
-export{computeEdgeRank, computeHalfEdgeRank, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+export{computeEdgeRank, computeHalfEdgeRank, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
