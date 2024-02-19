@@ -352,6 +352,7 @@ class Controller{
 
 
             if(flipable){
+                console.log(edge_id, p1_id, new_point1,p2_id,new_point2)
                 //Faces diminuées
                 let decreased_face1 = Utils.removeElements(faces, new_faces1)[0];
                 let decreased_face2 = Utils.removeElements(faces, new_faces2)[0];
@@ -372,11 +373,50 @@ class Controller{
                 let border2_ext_coords = this.computeBorderCoords(new_exterior_decreased_face2);
                 let border2_int_coords = this.computeBorderCoords(new_interior_decreased_face2);
 
+                let i1_ext_1 = new_exterior_decreased_face1.indexOf(p1_id);
+                let i1_int_1 = new_interior_decreased_face1.indexOf(p1_id);
+                let i1_ext_2 = new_exterior_decreased_face2.indexOf(p1_id);
+                let i1_int_2 = new_interior_decreased_face2.indexOf(p1_id);
+
+                let i2_ext_1 = new_exterior_decreased_face1.indexOf(p2_id);
+                let i2_int_1 = new_interior_decreased_face1.indexOf(p2_id);
+                let i2_ext_2 = new_exterior_decreased_face2.indexOf(p2_id);
+                let i2_int_2 = new_interior_decreased_face2.indexOf(p2_id);
+
+                
+
+                //On remplace les anciennes coordonnées par les nouvelles
+                if(i1_ext_1!=-1){
+                    border1_ext_coords[i1_ext_1] = new_point1;
+                }
+                if(i1_int_1!=-1){
+                    border1_int_coords[i1_int_1] = new_point1;
+                }
+                if(i1_ext_2!=-1){
+                    border2_ext_coords[i1_ext_2] = new_point1;
+                }
+                if(i1_int_2!=-1){
+                    border2_int_coords[i1_int_2] = new_point1;
+                }
+                if(i2_ext_1!=-1){
+                    border1_ext_coords[i2_ext_1] = new_point2;
+                }
+                if(i2_int_1!=-1){
+                    border1_int_coords[i2_int_1] = new_point2;
+                }
+                if(i2_ext_2!=-1){
+                    border2_ext_coords[i2_ext_2] = new_point2;
+                }
+                if(i2_int_2!=-1){
+                    border2_int_coords[i2_int_2] = new_point2;
+                }
+
+                
                 flipable = !GeomUtils.checkAutoIntersection(border1_ext_coords)
                             && !GeomUtils.checkAutoIntersection(border1_int_coords)
                             && !GeomUtils.checkAutoIntersection(border2_ext_coords)
                             && !GeomUtils.checkAutoIntersection(border2_int_coords);
-            }
+                }
             
             
             //Faces augmentées
@@ -402,27 +442,43 @@ class Controller{
                 let border2_ext_coords = this.computeBorderCoords(new_exterior_increased_face2);
                 let border2_int_coords = this.computeBorderCoords(new_interior_increased_face2);
 
-                let i_ext_1 = new_exterior_increased_face1.indexOf(p2_id);
-                let i_int_1 = new_interior_increased_face1.indexOf(p2_id);
-                let i_ext_2 = new_exterior_increased_face2.indexOf(p1_id);
-                let i_int_2 = new_interior_increased_face2.indexOf(p1_id);
+                let i1_ext_1 = new_exterior_increased_face1.indexOf(p1_id);
+                let i1_int_1 = new_interior_increased_face1.indexOf(p1_id);
+                let i1_ext_2 = new_exterior_increased_face2.indexOf(p1_id);
+                let i1_int_2 = new_interior_increased_face2.indexOf(p1_id);
+
+                let i2_ext_1 = new_exterior_increased_face1.indexOf(p2_id);
+                let i2_int_1 = new_interior_increased_face1.indexOf(p2_id);
+                let i2_ext_2 = new_exterior_increased_face2.indexOf(p2_id);
+                let i2_int_2 = new_interior_increased_face2.indexOf(p2_id);
+
+                
 
                 //On remplace les anciennes coordonnées par les nouvelles
-                if(i_ext_1!=-1){
-                    border1_ext_coords[i_ext_1] = new_point2;
+                if(i1_ext_1!=-1){
+                    border1_ext_coords[i1_ext_1] = new_point1;
                 }
-                if(i_int_1!=-1){
-                    border1_int_coords[i_int_1] = new_point2;
+                if(i1_int_1!=-1){
+                    border1_int_coords[i1_int_1] = new_point1;
                 }
-                if(i_ext_2!=-1){
-                    border2_ext_coords[i_ext_2] = new_point1;
+                if(i1_ext_2!=-1){
+                    border2_ext_coords[i1_ext_2] = new_point1;
                 }
-                if(i_int_2!=-1){
-                    border2_int_coords[i_int_2] = new_point1;
+                if(i1_int_2!=-1){
+                    border2_int_coords[i1_int_2] = new_point1;
                 }
-
-
-
+                if(i2_ext_1!=-1){
+                    border1_ext_coords[i2_ext_1] = new_point2;
+                }
+                if(i2_int_1!=-1){
+                    border1_int_coords[i2_int_1] = new_point2;
+                }
+                if(i2_ext_2!=-1){
+                    border2_ext_coords[i2_ext_2] = new_point2;
+                }
+                if(i2_int_2!=-1){
+                    border2_int_coords[i2_int_2] = new_point2;
+                }
                 flipable = !GeomUtils.checkAutoIntersection(border1_ext_coords)
                             && !GeomUtils.checkAutoIntersection(border1_int_coords)
                             && !GeomUtils.checkAutoIntersection(border2_ext_coords)
@@ -534,7 +590,7 @@ class Controller{
         this.vertexData.material = newMaterial;
     }
 
-    triangulateNewface(faceId, newExterior, newInterior){
+    /*triangulateNewface(faceId, newExterior, newInterior){
         let exteriorPts = [];
         let interiorPts = [];
 
@@ -588,7 +644,7 @@ class Controller{
 
         return(triangulation_indices);
 
-    }
+    }*/
 
     
 
@@ -607,73 +663,6 @@ class Controller{
 
     }
 
-    removeVertex(v_id){
-
-        let p_id = this.vertexData.pIndex.getX(v_id);
-        let n_v_id = -1;
-
-        for(let i=0; i<this.vertexData.count; i++){
-            if(i!=v_id && this.vertexData.pIndex.getX(i)==p_id){
-                n_v_id = i;
-                break;
-            }
-        }
-        if(n_v_id>v_id){
-            n_v_id-=1;
-        }
-
-        this.vertexData.remove(v_id);
-        
-        for(let i=0; i<this.pointData.count; i++){
-            if(this.pointData.vIndex[i]==v_id){
-                this.pointData.vIndex[i]=n_v_id;
-            }
-            else if(this.pointData.vIndex[i]>v_id){
-                this.pointData.vIndex[i]-=1;
-            }
-        }
-
-        for(let i=0; i<this.triangleData.count; i++){
-            if(this.triangleData.vIndex[3*i]==v_id){
-                this.triangleData.vIndex[3*i]=-1;
-            }
-            else if(this.triangleData.vIndex[3*i]>v_id){
-                this.triangleData.vIndex[3*i]-=1;
-            }
-
-            if(this.triangleData.vIndex[3*i+1]==v_id){
-                this.triangleData.vIndex[3*i+1]=-1;
-            }
-            else if(this.triangleData.vIndex[3*i+1]>v_id){
-                this.triangleData.vIndex[3*i+1]-=1;
-            }
-
-            if(this.triangleData.vIndex[3*i+2]==v_id){
-                this.triangleData.vIndex[3*i+2]=-1;
-            }
-            else if(this.triangleData.vIndex[3*i+2]>v_id){
-                this.triangleData.vIndex[3*i+2]-=1;
-            }
-        }
-
-        for(let i=0; i<this.halfEdgeData.count; i++){
-            if(this.halfEdgeData.vIndex[2*i]==v_id){
-                this.halfEdgeData.vIndex[2*i]=-1;
-            }
-            else if(this.halfEdgeData.vIndex[2*i]>v_id){
-                this.halfEdgeData.vIndex[2*i]-=1;
-            }
-
-            if(this.halfEdgeData.vIndex[2*i+1]==v_id){
-                this.halfEdgeData.vIndex[2*i+1]=-1;
-            }
-            else if(this.halfEdgeData.vIndex[2*i+1]>v_id){
-                this.halfEdgeData.vIndex[2*i+1]-=1;
-            }
-        }
-
-
-    }
 
     getFaceBorders(faceId){
         return [this.getExterior(faceId),this.getInteriors(faceId)];   
@@ -726,313 +715,10 @@ class Controller{
         return border;
     }
 
-
-    findTriangleNeighbours(points){
-
-        let neighbours = [-1,-1,-1];
-
-        for(let i=0; i<this.triangleData.count; i++){
-            let [t_v1,t_v2,t_v3] = this.triangleData.vIndex.slice(3*i,3*i+3);
-            let t_p1 = this.vertexData.pIndex.getX(t_v1);
-            let t_p2 = this.vertexData.pIndex.getX(t_v2);
-            let t_p3 = this.vertexData.pIndex.getX(t_v3);
-
-            let local_id1 = points.indexOf(t_p1);
-            let local_id2 = points.indexOf(t_p2);
-            let local_id3 = points.indexOf(t_p3);
-
-            let neighbourhoud_ids = Utils.removeElements([0,1,2], [local_id1, local_id2, local_id3]);
-
-            
-
-            if(neighbourhoud_ids.length==1){
-                let n_id = neighbourhoud_ids[0];
-                neighbours[n_id]=i;
-            }
-        }
-        return neighbours;
-    }
-
-    findVertexNeighbours(p_id, triangleNeighbours, v_position_in_triangle){
-        let neighbours = [-1,-1];
-
-        let pos = [1,2,3].splice([1,2,3].indexOf[v_position_in_triangle],1);
-        
-
-        let t1_v1 = this.triangleData.vIndex[3*triangleNeighbours[pos[0]]];
-        let t1_v2 = this.triangleData.vIndex[3*triangleNeighbours[pos[0]]+1];
-        let t1_v3 = this.triangleData.vIndex[3*triangleNeighbours[pos[0]]+2];
-
-        let t1_p1 = this.vertexData.vIndex[t1_v1];
-        let t1_p2 = this.vertexData.vIndex[t1_v2];
-        let t1_p3 = this.vertexData.vIndex[t1_v3];
-
-        if(t1_p1==p_id){
-            neighbours[0]=t1_v1;
-        }
-        else if(t1_p2==p_id){
-            neighbours[0]=t1_v2;
-        }
-        else if(t1_p3==p_id){
-            neighbours[0]=t1_v3;
-        }
-
-
-
-        let t2_v1 = this.triangleData.vIndex[3*triangleNeighbours[pos[1]]];
-        let t2_v2 = this.triangleData.vIndex[3*triangleNeighbours[pos[1]]+1];
-        let t2_v3 = this.triangleData.vIndex[3*triangleNeighbours[pos[1]]+2];
-    
-        let t2_p1 = this.vertexData.vIndex[t2_v1];
-        let t2_p2 = this.vertexData.vIndex[t2_v2];
-        let t2_p3 = this.vertexData.vIndex[t2_v3];
-
-        if(t2_p1==p_id){
-            neighbours[1]=t1_v1;
-        }
-        else if(t2_p2==p_id){
-            neighbours[1]=t1_v2;
-        }
-        else if(t2_p3==p_id){
-            neighbours[1]=t1_v3;
-        }
-
-        return neighbours;
-
-    }
-
-    recomputeEdges(){
-        this.edgeData.reset();
-        this.halfEdgeData.reset();
-        for(let i=0; i<this.triangleData.count; i++){
-            let v1 = this.triangleData.vIndex[3*i];
-            let v2 = this.triangleData.vIndex[3*i+1];
-            let v3 = this.triangleData.vIndex[3*i+2];
-
-            let p1 = this.vertexData.pIndex.getX(v1);
-            let p2 = this.vertexData.pIndex.getX(v2);
-            let p3 = this.vertexData.pIndex.getX(v3);
-
-            let e1 = Utils.computeEdgeRank(p1,p2);
-            let e2 = Utils.computeEdgeRank(p2,p3);
-            let e3 = Utils.computeEdgeRank(p3,p1);
-
-            let he1 = Utils.computeHalfEdgeRank(p1,p2);
-            let he2 = Utils.computeHalfEdgeRank(p2,p3);
-            let he3 = Utils.computeHalfEdgeRank(p3,p1);
-
-            this.halfEdgeData.set(he1,e1, [v1,v2]);
-            this.halfEdgeData.set(he2,e2, [v2,v3]);
-            this.halfEdgeData.set(he3,e3, [v3,v1]);
-
-            
-
-            if(this.edgeData.halfEdgeIndex[2*e1]==null){
-                this.edgeData.halfEdgeIndex[2*e1]=he1;
-            }
-            else if(this.edgeData.halfEdgeIndex[2*e1+1]==null){
-                this.edgeData.halfEdgeIndex[2*e1+1]=he1;
-            }
-            else{
-                console.error("Problème de non validité du modèle topologique : Pas une variété");
-            }
-
-            if(this.edgeData.halfEdgeIndex[2*e2]==null){
-                this.edgeData.halfEdgeIndex[2*e2]=he2;
-            }
-            else if(this.edgeData.halfEdgeIndex[2*e2+1]==null){
-                this.edgeData.halfEdgeIndex[2*e2+1]=he2;
-            }
-            else{
-                console.error("Problème de non validité du modèle topologique : Pas une variété");
-            }
-
-            if(this.edgeData.halfEdgeIndex[2*e3]==null){
-                this.edgeData.halfEdgeIndex[2*e3]=he3;
-            }
-            else if(this.edgeData.halfEdgeIndex[2*e3+1]==null){
-                this.edgeData.halfEdgeIndex[2*e3+1]=he3;
-            }
-            else{
-                console.error("Problème de non validité du modèle topologique : Pas une variété");
-            }
-        }
-    } 
-
-
-    recomputeVerticesNeighbourhood(){
-
-        
-        for(let i=0; i<this.triangleData.count ;i++){
-            let id_v1 = this.triangleData.vIndex[3*i];
-            let id_v2 = this.triangleData.vIndex[3*i+1];
-            let id_v3 = this.triangleData.vIndex[3*i+2];
-
-            let neighbours_v1 = this.findVertexNeighbour(0, i);
-            let neighbours_v2 = this.findVertexNeighbour(1, i);
-            let neighbours_v3 = this.findVertexNeighbour(2, i);
-
-            this.vertexData.vIndex.setXY(id_v1,neighbours_v1[0],neighbours_v1[1]);
-            this.vertexData.vIndex.setXY(id_v2,neighbours_v2[0],neighbours_v2[1]);
-            this.vertexData.vIndex.setXY(id_v3,neighbours_v3[0],neighbours_v3[1]);
-
-
-        }
-    }
-
-    /**
-     * Retrouve les 2 vertex voisins du vertex actuel (voisins par triangles adjacents)
-     * @param {*} vertex_id : position of the vertex in the triangle
-     * @param {*} id_triangle : position of the triangle in the triangleData object
-     */
-    findVertexNeighbour(vertex_pos, id_triangle){
-
-        let result = [null, null];
-
-        let neighbour_1, neighbour_2;
-        let vertex_index = this.triangleData.vIndex[3*id_triangle+vertex_pos];
-        if(vertex_pos == 0){
-            neighbour_1 = 1;
-            neighbour_2 = 2;
-        }
-        if(vertex_pos == 1){
-            neighbour_1 = 0;
-            neighbour_2 = 2;
-        }
-        if(vertex_pos == 2){
-            neighbour_1 = 0;
-            neighbour_2 = 1;
-        }
-
-        let neighbour_id1 = this.triangleData.tIndex[3*id_triangle+neighbour_1];
-        let neighbour_id2 = this.triangleData.tIndex[3*id_triangle+neighbour_2];
-
-        let id_pt = this.vertexData.pIndex.getX(vertex_index);
-
-        
-
-
-        let n1_vert_1 = this.triangleData.vIndex[3*neighbour_id1];
-        let n1_vert_2 = this.triangleData.vIndex[3*neighbour_id1+1];
-        let n1_vert_3 = this.triangleData.vIndex[3*neighbour_id1+2];
-
-        let id_n1_vert_1 = this.vertexData.pIndex.getX(n1_vert_1);
-        let id_n1_vert_2 = this.vertexData.pIndex.getX(n1_vert_2);
-        let id_n1_vert_3 = this.vertexData.pIndex.getX(n1_vert_3);
-
-
-        if(id_n1_vert_1==id_pt){
-            result[0] = n1_vert_1;
-        }
-        else if(id_n1_vert_2==id_pt){
-            result[0] = n1_vert_2;
-        }
-        else if(id_n1_vert_3==id_pt){
-            result[0] = n1_vert_3;
-        }
-
-    
-        let n2_vert_1 = this.triangleData.vIndex[3*neighbour_id2];
-        let n2_vert_2 = this.triangleData.vIndex[3*neighbour_id2+1];
-        let n2_vert_3 = this.triangleData.vIndex[3*neighbour_id2+2];
-
-        let id_n2_vert_1 = this.vertexData.pIndex.getX(n2_vert_1);
-        let id_n2_vert_2 = this.vertexData.pIndex.getX(n2_vert_2);
-        let id_n2_vert_3 = this.vertexData.pIndex.getX(n2_vert_3);
-
-        if(id_n2_vert_1==id_pt){
-            result[1] = n2_vert_1;
-        }
-        else if(id_n2_vert_2==id_pt){
-            result[1] = n2_vert_2;
-        }
-        else if(id_n2_vert_3==id_pt){
-            result[1] = n2_vert_3;
-        }
-        
-
-        return(result);
-
-    }
-
-    recomputeTrianglesNeighbourhood(){
-        //Compute the neighbours of each triangle
-        let nb_t = this.triangleData.count;
-        let globalTriangulation = [];
-        
-        for(let i=0; i<nb_t ;i++){
-            let v1 = this.triangleData.vIndex[3*i];
-            let v2 = this.triangleData.vIndex[3*i+1];
-            let v3 = this.triangleData.vIndex[3*i+2];
-            globalTriangulation.push(this.vertexData.pIndex.getX(v1), this.vertexData.pIndex.getX(v2), this.vertexData.pIndex.getX(v3));
-        }
-        for(let i=0; i<nb_t ;i++){
-            let triangle = [globalTriangulation[3*i], globalTriangulation[3*i+1], globalTriangulation[3*i+2]];
-            let neighbours = this.findTrianglesNeighbours(triangle, globalTriangulation);
-            this.triangleData.tIndex[3*i  ] = neighbours[0];
-            this.triangleData.tIndex[3*i+1] = neighbours[1];
-            this.triangleData.tIndex[3*i+2] = neighbours[2];
-        }
-
-    }
-
-    /**
-     * 
-     * @param {int[]} triangle : tableau des indices des points formant le triangle
-     * @param {int[]} triangles_array : tableau des indices des points formant tout les triangle
-     * @returns 
-     */
-    findTrianglesNeighbours(triangle, triangles_array){
-        let neighbours = [null,null,null];
-
-        let nb_neighbours = 0;
-        
-
-        for(let i=0; i<triangles_array.length/3; i++){
-            let common_pts = [false, false, false];
-
-            let common1 = triangle.indexOf(triangles_array[3*i  ]);
-            let common2 = triangle.indexOf(triangles_array[3*i+1]);
-            let common3 = triangle.indexOf(triangles_array[3*i+2]);
-
-            if(common1!=-1){
-                common_pts[common1] = true;
-            }
-            if(common2!=-1){
-                common_pts[common2] = true;
-            }
-            if(common3!=-1){
-                common_pts[common3] = true;
-            }
-            
-
-            //Pour savoir de quel "côté" du triangle se trouve le voisin, on stocke l'indice du voisin
-            //à l'indice correspondant au point opposé au voisin 
-            //ex : on stocke dans la case 2 le voisin collé sur l'arrête 0-1, car le point 2 est le point qui lui est opposé.
-            if(common_pts[0]&&common_pts[1]&&(!common_pts[2])){
-                neighbours[2] = i;
-                nb_neighbours+=1;
-            }
-            else if(common_pts[0]&&(!common_pts[1])&&common_pts[2]){
-                neighbours[1] = i;
-                nb_neighbours+=1;
-            }
-            else if((!common_pts[0])&&common_pts[1]&&common_pts[2]){
-                neighbours[0] = i;
-                nb_neighbours+=1;
-            }
-            if(nb_neighbours==3){
-                break;
-            }
-        }
-        return neighbours;
-
-    }
-
     /**
      * Mets à jour le modèle GML avec les modifications faites par l'utilisateur
      */
-    updateGeomModel(){
+    updateGmlModel(){
         for(let p_id=0; p_id<this.pointData.count; p_id++){
             let v_id = this.pointData.vIndex[p_id];
             let [x,y,z] = this.vertexData.coords.getXYZ(v_id);
