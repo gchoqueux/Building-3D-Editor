@@ -14,9 +14,15 @@ class PointData{
     }
     add(he_id){
         this.coords.push([0,0,0]);
-        this.heIndex.push(he_id);
+        this.heIndex.push([he_id]);
         this.nbAdjacentFaces.push(-1);
         this.count+=1;
+    }
+    delete(p_id){
+        this.coords.splice(p_id, 1);
+        this.heIndex.splice(p_id, 1);
+        this.nbAdjacentFaces.splice(p_id, 1);
+        this.count-=1;
     }
 
     getAdjacentHalfEdges(p_id, he_data){
@@ -35,6 +41,10 @@ class PointData{
         this.selectedPoint = newPointIndex;
         material.uniforms.selectedPointId.value = newPointIndex;
         material.needsUpdate = true;
+    }
+
+    copy(){
+        return new PointData([...this.coords], [...this.heIndex], [...this.nbAdjacentFaces]);
     }
 
 
@@ -58,6 +68,29 @@ class HalfEdgeData{
         this.eIndex.push(e_id);
         this.count+=1;
     }
+    delete(he_id){
+        this.pIndex.splice(he_id, 1);
+        this.oppIndex.splice(he_id, 1);
+        this.nextIndex.splice(he_id, 1);
+        this.fIndex.splice(he_id, 1);
+        this.eIndex.splice(he_id, 1);
+        this.count-=1;
+        for(let i=0; i<this.count; i++){
+            if(this.oppIndex[i]==he_id){
+                this.oppIndex[i]=-1;
+            }
+            else if(this.oppIndex[i]>he_id){
+                this.oppIndex[i]-=1;
+            }
+
+            if(this.nextIndex[i]==he_id){
+                this.nextIndex[i]=-1;
+            }
+            else if(this.nextIndex[i]>he_id){
+                this.nextIndex[i]-=1;
+            }
+        }
+    }
     next(he_id){
         return(this.nextIndex[he_id]);
     }
@@ -66,6 +99,10 @@ class HalfEdgeData{
     }
     vertex(he_id){
         return(this.pIndex[he_id]);
+    }
+    targetPoint(he_id){
+        let next = this.next(he_id);
+        return this.vertex(next);
     }
 
     previous(he_id){
@@ -92,6 +129,10 @@ class HalfEdgeData{
         this.eIndex = new Array(this.count);
         this.vIndex = new Array(2*this.count);
     }
+
+    copy(){
+        return new HalfEdgeData([...this.pIndex], [...this.oppIndex], [...this.nextIndex], [...this.fIndex], [...this.eIndex]);
+    }
 }
 
 class EdgeData{
@@ -110,6 +151,14 @@ class EdgeData{
         this.heIndex.push(he_id);
         this.flipable.push(false);
         this.count+=1;
+    }
+    delete(e_id){
+        this.heIndex.splice(e_id, 1);
+        this.flipable.splice(e_id,1);
+        this.count-=1;
+    }
+    copy(){
+        return new EdgeData([...this.heIndex]);
     }
 }
 
@@ -163,6 +212,10 @@ class FaceData{
 
     update(){
         //On recalcule l'équation de plan
+    }
+
+    copy(){
+        return new FaceData([...this.planeEquation], [...this.hExtIndex], [...this.hIntIndices]);
     }
 
 

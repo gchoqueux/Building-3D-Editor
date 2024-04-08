@@ -27,3 +27,6 @@ body {
     height: 40px;
 }
 
+.three_container{
+    display: flex;
+}

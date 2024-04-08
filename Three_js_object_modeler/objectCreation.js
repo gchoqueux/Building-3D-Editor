@@ -26,8 +26,6 @@ let building1 = {
         house1
     ]
 }
-
-let buildingsJs = [building1];
 */
 //Maisons
 /*

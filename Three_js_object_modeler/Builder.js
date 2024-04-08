@@ -2,7 +2,7 @@ import { Point3D, Polygon, LinearRing, MultiSurface } from "./CityGMLGeometricMo
 import { VertexData, TriangleData } from "./graphicalModels";
 import { PointData, FaceData, HalfEdgeData, EdgeData } from "./GeometricalProxy";
 import { Building, BuildingPart, ClosureSurface, WallSurface, FloorSurface, OuterFloorSurface, GroundSurface, RoofSurface } from "./CityGMLLogicalModel";
-import { Controller } from "./controller";
+import { Controller, DualController } from "./controller";
 import * as Utils from './utils/utils';
 import matrix from 'matrix-js';
 import Earcut from "earcut";
@@ -14,7 +14,7 @@ class SceneBuilder{
     }
     build(geometricalController, material){
         this.computeTriangulation(geometricalController);
-        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[]}
+        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], 'faceBorder':[]}
         for(let i=0; i<this.triangleData.count; i++){
             let p1_id = this.triangleData.pIndex[3*i];
             let p2_id = this.triangleData.pIndex[3*i+1];
@@ -24,7 +24,6 @@ class SceneBuilder{
             let p1 = geometricalController.computeCoords(p1_id);
             let p2 = geometricalController.computeCoords(p2_id);
             let p3 = geometricalController.computeCoords(p3_id);
-
 
 
             
@@ -41,16 +40,39 @@ class SceneBuilder{
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
-            //console.log(faceId,":",p1_id,p2_id,p3_id);
-            /*console.log(faceId,":",p1,p2,p3);*/
-            //console.log(p1_id, geometricalController.findAdjacentFaces(p1_id));
 
+            //edge1
+            let selected1 = this.isBorder(geometricalController, p2_id, p3_id);
+            if(selected1){
+                this.vertex_data.faceBorder.push(0);
+            }
+            else{
+                this.vertex_data.faceBorder.push(1);
+            }
+
+            //edge2
+            let selected2 = this.isBorder(geometricalController, p1_id, p3_id);
+            if(selected2){
+                this.vertex_data.faceBorder.push(0);
+            }
+            else{
+                this.vertex_data.faceBorder.push(1);
+            }
+
+            //edge3
+            let selected3 = this.isBorder(geometricalController, p1_id, p2_id);
+            if(selected3){
+                this.vertex_data.faceBorder.push(0);
+            }
+            else{
+                this.vertex_data.faceBorder.push(1);
+            }
         }
-        //console.log(this.vertex_data.position);
+        
 
         this.vertexData_object = new VertexData(this.vertex_data.position, this.vertex_data.normal,
                                                 this.vertex_data.uv, this.vertex_data.fIndex, 
-                                                this.vertex_data.pIndex, material)
+                                                this.vertex_data.pIndex, this.vertex_data.faceBorder, material)
     }
     update(geometricalController, material){
         this.computeTriangulation(geometricalController);
@@ -88,7 +110,9 @@ class SceneBuilder{
         for(let i=0; i<geometricalController.faceData.count; i++){
             //////On triangule la face
             let [exterior,interiors] = geometricalController.getFaceBorders(i);
-            //console.log(i, exterior);
+            if(exterior[0]===undefined){
+                console.log(i, exterior);
+            }
             let exterior_coords = geometricalController.computeBorderCoords(exterior);
             let interiors_coords = [];
             interiors.forEach(interior=>{
@@ -109,6 +133,21 @@ class SceneBuilder{
         }
         this.triangleData = new TriangleData(this.triangle_data.fIndex, this.triangle_data.pIndex);
     }
+
+
+    isBorder(geometricalController, p1_id,p2_id){
+        let he1 = geometricalController.pointData.heIndex[p1_id][0];
+        let targetPoint = geometricalController.halfEdgeData.targetPoint(he1);
+        let selected1 = false;
+        do{
+            selected1 = (targetPoint == p2_id);
+            he1 = geometricalController.halfEdgeData.opposite(he1);
+            he1 = geometricalController.halfEdgeData.next(he1);
+            targetPoint = geometricalController.halfEdgeData.targetPoint(he1);
+        }while(he1!=geometricalController.pointData.heIndex[p1_id][0] && !selected1);
+        return selected1;
+    }
+
 
     triangulateFace(exterior, interiors, planeEquation){
         let pointsCoordinates = [];
@@ -199,7 +238,7 @@ class GeometryBuilder{
                     //Creation of the half edges
                     let n_ext_he = polygon.exterior.size;
                     let nb_he = this.halfedge_data.pIndex.length;
-                    this.face_data.hExtIndex[polygon.id] = nb_he;
+                    this.face_data.hExtIndex[polygon.id] = [nb_he];
                     for(let i=0; i<n_ext_he; i++){
                         let point3D = polygon.exterior.positions[i];
                         let origin = point3D.id;
@@ -207,7 +246,7 @@ class GeometryBuilder{
                         this.halfedge_data.pIndex.push(origin);
                         this.halfedge_data.nextIndex.push(next);
                         this.halfedge_data.fIndex.push(polygon.id);
-                        this.point_data.heIndex[origin]=nb_he+i;
+                        this.point_data.heIndex[origin]=[nb_he+i];
                     }
 
                     this.face_data.hIntIndices[polygon.id]=[];
@@ -263,7 +302,7 @@ class GeometryBuilder{
         //computes the number of faces adjacent to the points
         for(let i=0; i<this.point_data.nbAdjacentFaces.length; i++){
 
-            let he_0 = this.point_data.heIndex[i];
+            let he_0 = this.point_data.heIndex[i][0];
             let he = he_0;
             let faces = [];
             do{
@@ -380,4 +419,90 @@ class ModelBuilder{
     }
 }
 
-export {ModelBuilder, GeometryBuilder,SceneBuilder}
+class DualBuilder{
+    constructor(){
+        this.dual = {}
+    }
+    build(geometricalController){
+        this.point_data = {'coords' : [], 'heIndices' : [], 'nbAdjacentFaces' : []};
+        this.face_data = {'hExtIndex': [], 'hIntIndices':[],'planeEquation':[]};
+        this.edge_data  = {'heIndex':[]};
+        this.halfedge_data = {'nextIndex':[], 'oppositeIndex':[], 'eIndex':[], 'pIndex':[], 'fIndex':[]};
+        this.LoD = geometricalController.LoD;
+        for(let i=0; i<geometricalController.faceData.count; i++){
+            let [a,b,c,d] = geometricalController.faceData.planeEquation[i];
+            if(d==0){
+                d=0.000001;
+            }
+            this.point_data.coords.push([a*d,b*d,c*d]);
+            let heIndices = [];
+            heIndices.push(geometricalController.faceData.hExtIndex[i]);
+            heIndices.push(...geometricalController.faceData.hIntIndices[i]);
+            this.point_data.heIndices.push(heIndices);
+        }
+
+        for(let i=0; i<geometricalController.halfEdgeData.count; i++){
+            let f_id = geometricalController.halfEdgeData.vertex(i);
+            let p_id = geometricalController.halfEdgeData.fIndex[i];
+            let oppositeIndex = geometricalController.halfEdgeData.opposite(i);
+            let nextIndex = geometricalController.halfEdgeData.next(oppositeIndex);
+            let eIndex = geometricalController.halfEdgeData.eIndex[i];
+
+            this.halfedge_data.nextIndex.push(nextIndex);
+            this.halfedge_data.oppositeIndex.push(oppositeIndex);
+            this.halfedge_data.eIndex.push(eIndex);
+            this.halfedge_data.pIndex.push(p_id);
+            this.halfedge_data.fIndex.push(f_id);
+        }
+
+        for(let i=0; i<geometricalController.edgeData.count; i++){
+            let h_id = geometricalController.edgeData.heIndex[i];
+            
+            this.edge_data.heIndex.push(h_id);
+        }
+
+        for(let i=0; i<geometricalController.pointData.count; i++){
+            let h_id = geometricalController.pointData.heIndex[i][0];
+            this.face_data.hExtIndex.push([h_id]);
+            this.face_data.hIntIndices.push([]);
+            let [x,y,z] = geometricalController.computeCoords(i);
+            this.face_data.planeEquation.push([x,y,z,1]);
+        }
+
+        //computes the number of faces adjacent to the points
+        for(let i=0; i<this.point_data.heIndices.length; i++){
+            let nbFaces = 0;
+            this.point_data.heIndices[i].forEach(he_0=>{
+                let he = he_0;
+                let faces = [];
+                do{
+                    faces = Utils.mergeListsWithoutDoubles(faces,[this.halfedge_data.fIndex[he]]);
+                    he = this.halfedge_data.oppositeIndex[he];
+                    he = this.halfedge_data.nextIndex[he];
+                    
+                }while(he!=he_0)
+                nbFaces+=faces.length;
+            })
+            
+            
+            this.point_data.nbAdjacentFaces[i]=nbFaces;
+        }
+
+        this.face_data_object = new FaceData(this.face_data.planeEquation, this.face_data.hExtIndex, this.face_data.hIntIndices);
+        this.edge_data_object = new EdgeData(this.edge_data.heIndex);
+        this.halfedge_data_object = new HalfEdgeData(this.halfedge_data.pIndex, this.halfedge_data.oppositeIndex,
+                                                     this.halfedge_data.nextIndex, this.halfedge_data.fIndex, this.halfedge_data.eIndex);
+        this.point_data_object = new PointData(this.point_data.coords, this.point_data.heIndices, this.point_data.nbAdjacentFaces);
+    }
+
+
+    /**
+     * 
+     * @returns A Controller object corresponding to this scene.
+     */
+    getScene(material){
+        return (new DualController(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material));   
+    }
+}
+
+export {ModelBuilder, GeometryBuilder,SceneBuilder, DualBuilder}

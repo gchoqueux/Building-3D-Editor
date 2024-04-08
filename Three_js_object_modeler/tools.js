@@ -1,7 +1,7 @@
 import * as Utils from './utils/utils';
 import * as GeomUtils from './utils/3DGeometricComputes';
 import * as THREE from 'three';
-import { DebugFlipMaterial, BuildingMaterial, FacePointMaterial, FlipEdgeMaterial, SplitPointMaterial } from './materials.js';
+import { DebugFlipMaterial, FacePointMaterial, FlipEdgeMaterial, SplitPointMaterial } from './materials.js';
 import { Float32ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 
 class ToolBar{
@@ -146,8 +146,9 @@ class ShiftTool extends Tool{
         if(this.clicked){
             let faceId = this.geometricalController.faceData.selectedFace;
             if(faceId!=-1){
+                //console.log(faceId);
                 let debugInfo = {};
-                let x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                let x = ( 2*event.clientX / window.innerWidth ) * 2 - 1;
                 let y = - ( event.clientY / window.innerHeight ) * 2 + 1;
                 let z = 1;
 
@@ -209,7 +210,7 @@ class ShiftTool extends Tool{
                 //this.lastPicked.copy(pickedPoint);
                 this.globalDelta = delta;
 
-                this.geometricalController.updateScene();
+                //this.geometricalController.updateScene();
 
                 this.verticesPPT.push(projectedPoint[0], projectedPoint[1], projectedPoint[2]);
 
