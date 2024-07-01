@@ -1,57 +1,95 @@
 import matrix from 'matrix-js';
-import * as Utils from './utils/utils'
-import * as GeomUtils from './utils/3DGeometricComputes'
-import { Point3D, Polygon } from './CityGMLGeometricModel';
-import { SceneBuilder } from './Builder';
-import { HalfEdgeData } from './GeometricalProxy';
-import { DualBuilder } from './Builder';
+import * as Utils from '../utils/utils'
+import * as GeomUtils from '../utils/3DGeometricComputes'
+import { Point3D, Polygon } from '../CityGMLGeometricModel';
+import { SceneBuilder } from '../Builders/Builder';
+import { HalfEdgeData } from '../GeometricalProxy';
+import { DualBuilder } from '../Builders/Builder';
+import { embeddings } from '../GeometricalEmbedding';
+import * as Certificats from "../certificats";
+import { isTopologicallyValid } from '../validityCheck';
 
 class Controller{
     static epsilon = 0.000001;
-    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material){
-
+    static maxId = 0;
+    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy=false, isDual=false){
+        this.id=Controller.maxId;
+        Controller.maxId++;
         this.faceData     = faceData;
         this.pointData    = pointData;
         this.halfEdgeData = halfEdgeData;
         this.edgeData     = edgeData;
         this.dualController = null;
+        this.dualBuilder = new DualBuilder(embeddings["Trivial"]);
+        this.isCopy = isCopy;
+        this.isDual = isDual;
+        
+        if(!isCopy){
+            this.stop = false;
 
-        this.dualBuilder = new DualBuilder();
+            this.sceneBuilder = new SceneBuilder();
 
-        this.stop = false;
+            //this.geometricalModel = geometricalModel;
+            this.LoD = LoD;
+            //On calcule la flippabilité des arrêtes
+            if(!isDual){
+                for(let i=0; i<this.edgeData.count; i++){
+                    this.edgeData.flipable[i] = this.isflipable(i);
+                }
+            }
+            
+            this.material = material;
+            this.sceneBuilder.build(this, this.material);
+    
+            this.vertexData = this.sceneBuilder.getScene();
+        }
+        
 
-        this.sceneBuilder = new SceneBuilder();
+    }
 
-        //this.geometricalModel = geometricalModel;
+    update(faceData, pointData, halfEdgeData, edgeData, LoD, material){
+        this.faceData     = faceData;
+        this.pointData    = pointData;
+        this.halfEdgeData = halfEdgeData;
+        this.edgeData     = edgeData;
         this.LoD = LoD;
         //On calcule la flippabilité des arrêtes
-        for(let i=0; i<this.edgeData.count; i++){
-            this.edgeData.flipable[i] = this.isflipable(i);
+        if(!this.isDual){
+            for(let i=0; i<this.edgeData.count; i++){
+                this.edgeData.flipable[i] = this.isflipable(i);
+            }
         }
         this.material = material;
-        this.sceneBuilder.build(this, this.material);
-   
-        this.vertexData = this.sceneBuilder.getScene();
-
     }
 
     //callback Functions
     onChange(){
+        //console.log("begin onChange");
         //On recalcul la flippabilité des arrêtes
-        for(let i=0; i<this.edgeData.count; i++){
-            this.edgeData.flipable[i] = this.isflipable(i);
+        if(!this.isDual){
+            for(let i=0; i<this.edgeData.count; i++){
+                this.edgeData.flipable[i] = this.isflipable(i);
+            }
         }
+
         //Recalcul du nombre de faces que chaque point touche
+        //console.log("before arrity compute");
         for(let i=0; i<this.pointData.count; i++){
             this.pointData.nbAdjacentFaces[i]=this.findAdjacentFaces(i).length;
         }
+        //console.log("before update scene");
         this.updateScene();
         this.vertexData = this.sceneBuilder.getScene();
         
         if(!(this.dualController == null)){
+            //console.log("before dual build");
             this.dualBuilder.build(this);
-            this.dualController = this.dualBuilder.getScene(this.dualController.material);
+            //console.log("before dual update");
+            this.dualBuilder.updateScene(this.dualController.material, this.dualController);
+            //console.log("before dual onChnage");
+            this.dualController.onChange();
         }
+        //console.log("end onChange");
     }
 
     rebuildScene(){
@@ -63,81 +101,148 @@ class Controller{
     }
 
 
+    setEmbedding(embeddingName){
+        this.dualBuilder.setEmbedding(embeddings[embeddingName]);
+        if(!(this.dualController == null)){
+            this.dualBuilder.build(this);
+            this.dualBuilder.updateScene(this.dualController.material, this.dualController);
+            this.dualController.onChange();
+        }
+    }
+
+
 
 
     //Manipulation functions
     faceShift2(faceId, delta){
         //console.log(faceId);
 
-        //On commence par faire un split sur les points quadruples
+        let faceDeleted = false;
+
+        //We verify that all points which must be splitted can be without any issue
+        let splittable = true;
         for(let i=0; i<this.pointData.count; i++){
+            //console.log(i);
             let adjFaces = this.findAdjacentFaces(i);
+            //console.log(adjFaces);
             if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
-                this.splitPointOnMvt(i, faceId, delta);
+                //console.log("before split");
+                splittable = (this.chooseSplitPointStrat(i, faceId, delta)!=-1);
+            }
+            else if(adjFaces.includes(faceId)&&(adjFaces.length>=5) && !this.stop){
+                splittable = false;
+            }
+            if(!splittable){
+                break;
             }
         }
 
-        let faces = [];
-        let able_to_shift = true;
-        for(let i=0; i<this.pointData.count; i++){
-            faces.push(this.findAdjacentFaces(i));
-            if(faces[i].includes(faceId)&&faces[i].length>=4){
-                able_to_shift=false;
-            }
 
-        }
-        if(able_to_shift && !this.stop){
-            //On commence par vérifier qu'on fait un décalage autorisé
 
-            let [tmin, tmax] = this.findTValidityInterval(faceId);
-            if(tmin>=-Controller.epsilon){
-                tmin=0;
-            }
-            if(tmax<=Controller.epsilon){
-                tmax=0;
-            }
-            let delta_final = delta;
-            if(delta<=0 && delta<=tmin){
-                delta_final = tmin;
-            }
-            else if(delta>0 && delta>=tmax){
-                delta_final = tmax;
-            }
-            //console.log(tmin, tmax, delta, delta_final);
-            let [a,b,c,d] = this.faceData.planeEquation[faceId];
-            this.faceData.planeEquation[faceId][3] -= delta_final*(a*a+b*b+c*c);
-            
-            //Si nécesaire, fusionner les points qui sont confondus
-
-            //if((delta_final!= delta) ||delta <Controller.epsilon){
-            for(let i=0; i<this.edgeData.count; i++){
-                //console.log(i," : ", this.edgeLength(i));
-                if(this.edgeLength(i)<Controller.epsilon){
-                    this.degenerateEdge(i);
+         
+        if(splittable){
+            //If it's ok, we split all the points
+            for(let i=0; i<this.pointData.count; i++){
+                //console.log(i);
+                let adjFaces = this.findAdjacentFaces(i);
+                //console.log(adjFaces);
+                if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
+                    //console.log("before split");
+                    //console.log("split strat ========>",this.splitPointOnMvt(i, faceId, delta));
+                    this.splitPointOnMvt(i, faceId, delta)
                 }
             }
-           //}
+    
+            //console.log("before able to shift");
+            let faces = [];
+            let able_to_shift = true;
+            for(let i=0; i<this.pointData.count; i++){
+                faces.push(this.findAdjacentFaces(i));
+                if(faces[i].includes(faceId)&&faces[i].length>=4){
+                    able_to_shift=false;
+                }
+    
+            }
+            if(able_to_shift && !this.stop){
+                //On commence par vérifier qu'on fait un décalage autorisé
+                //console.log("before tMin tMax");
+                let [tmin, tmax] = this.findTValidityInterval(faceId);
+                if(tmin>=-Controller.epsilon){
+                    tmin=0;
+                }
+                if(tmax<=Controller.epsilon){
+                    tmax=0;
+                }
+                let delta_final = delta;
+                if(delta<=0 && delta<=tmin){
+                    delta_final = tmin;
+                    //delta_final = 0;
+                }
+                else if(delta>0 && delta>=tmax){
+                    delta_final = tmax;
+                    //delta_final = 0;
+                }
+                //console.log(delta_final);
+                //console.log(tmin, tmax, delta, delta_final);
+                //console.log("before plane modif");
+                let [a,b,c,d] = this.faceData.planeEquation[faceId];
+                this.faceData.planeEquation[faceId][3] -= delta_final*(a*a+b*b+c*c);
+                
+                //Si nécesaire, fusionner les points qui sont confondus
+    
+                //if((delta_final!= delta) ||delta <Controller.epsilon){
+                //console.log("before degenerate");
+
+                for(let i=0; i<this.edgeData.count; i++){
+                    //console.log(i);
+                    if(this.edgeLength(i)<Controller.epsilon){
+                        let degenerated_face = Certificats.faceDegenerated(this, i);
+                        if(degenerated_face==-1){
+                            console.log("edge degeneration");
+                            this.degenerateEdge(i);
+                            i=-1;
+                        }
+                        else{
+                            faceDeleted = true;
+                            this.degenerateEdge(i);
+                            this.degenerateFace(degenerated_face);
+                            isTopologicallyValid(this);
+                        }
+                    }
+                }
+                if(!faceDeleted){
+                    this.faceData.planeEquation[faceId][3] -= (delta-delta_final)*(a*a+b*b+c*c);
+                }
+                
+                
+               //}
+            }
+    
+            //console.log("end shift");
         }
-
-
+        return faceDeleted;
+        
     }
 
     findAdjacentFaces(pointId){
         let faces = [];
-        let he_0 = this.pointData.heIndex[pointId];
+        //console.log(">>>>>>>>>>>>>>>>>", pointId);
+        let he_0 = this.pointData.heIndex[pointId][0];
         let he = he_0;
         let i=0;
-        //console.log(">>>>>>>>>>>>>>>>>", pointId);
         do{
             i++;
-            //console.log("      ", he);
             let face_id = this.halfEdgeData.fIndex[he];
+            //console.log("      ", he, face_id);
             faces = Utils.mergeListsWithoutDoubles(faces, [face_id]);
             he = this.halfEdgeData.opposite(he);
             he = this.halfEdgeData.next(he);
+            /*if(i>100){
+                console.log(">>>>>>>>>>>>>>>>>!!!!", pointId);
+            }*/
         }while(he!=he_0&&i<100)
         if(i==100){
-            console.log(">>>>>>>>>>>>>>>>>", pointId);
+            console.log(">>>>>>>>>>>>>>>>>", pointId, he_0);
         }
         return faces;
     }
@@ -174,7 +279,12 @@ class Controller{
      */
     computeCoords(point_id){
         let faces = this.findAdjacentFaces(point_id);
-        let fEquation1 = this.faceData.planeEquation[faces[0]];
+        let plans = [];
+        faces.forEach(f=>{
+            plans.push([...this.faceData.planeEquation[f]]);
+        });
+        let p = GeomUtils.computeIntersectionPoint2(...plans);
+        /*let fEquation1 = this.faceData.planeEquation[faces[0]];
         let fEquation2 = this.faceData.planeEquation[faces[1]];
         let fEquation3 = this.faceData.planeEquation[faces[2]]; 
         if(faces.length<3){
@@ -186,7 +296,7 @@ class Controller{
         let D = matrix([[-fEquation1[3]],[-fEquation2[3]],[-fEquation3[3]]]);
         //console.log(D());
         let p = matrix(A.inv()).prod(D);
-        p = matrix(p).trans()[0];
+        p = matrix(p).trans()[0];*/
         //console.log(point_id, p);
         return p;
     }
@@ -211,16 +321,23 @@ class Controller{
         this.edgeData.changeSelectedEdge(e_id, material);
     }
 
-    /*updateFaceCenter(faceID){
-        let he_0 = this.faceData.hExtIndex;
+    computeFaceCenter(faceID){
+        let he_0 = this.faceData.hExtIndex[faceID][0];
         let [cx,cy,cz]= [0,0,0];
         let n=0;
         let he = he_0;
         do{
-
-        }while(he!=he_0)
+            let p_id = this.halfEdgeData.vertex(he);
+            let [x,y,z] = this.computeCoords(p_id);
+            cx+=x;
+            cy+=y;
+            cz+=z;
+            n+=1;
+            he = this.halfEdgeData.next(he);
+        }while(he!=he_0 && n<999)
+        return [cx/n, cy/n, cz/n];
         
-    }*/
+    }
 
     findTValidityInterval(fIndex){
         let tmax=[];
@@ -297,6 +414,49 @@ class Controller{
         return ([Math.max(...tmin), Math.min(...tmax)]);
     }
 
+    /**
+     * Degenerate a face by degenerating a given edge
+     * @param {*} faceId 
+     * @param {*} edgeId 
+     */
+    degenerateFace(faceId){
+        
+        let h   = this.faceData.hExtIndex[faceId][0];
+        let h_o = this.halfEdgeData.opposite(h);
+        let h_n = this.halfEdgeData.next(h);
+        let h_no = this.halfEdgeData.opposite(h_n);
+        let e1   = this.halfEdgeData.eIndex[h];
+        let e2   = this.halfEdgeData.eIndex[h_n];
+
+        let p1 = this.halfEdgeData.vertex(h);
+        let p2 = this.halfEdgeData.vertex(h_n);
+
+
+
+        //change the half-edges pointers
+        this.halfEdgeData.oppIndex[h_o] = h_no;
+        this.halfEdgeData.oppIndex[h_no] = h_o;
+        this.halfEdgeData.eIndex[h_no] = e1;
+
+        //change the vertices pointers
+        
+        if(this.pointData.heIndex[p1]==h){
+            this.pointData.heIndex[p1]=[h_no];
+        }
+        if(this.pointData.heIndex[p2]==h_n){
+            this.pointData.heIndex[p2]=[h_o];
+        }
+
+        //Delete edges, half-edges and face
+        this.deleteFace(faceId);
+        this.deleteEdge(e2);
+        this.deleteHalfEdge(h);
+        if(h_n>h){
+            h_n-=1;
+        }
+        this.deleteHalfEdge(h_n);
+
+    }
 
     degenerateEdge(e_id){
         let h   = this.edgeData.heIndex[e_id];
@@ -356,10 +516,14 @@ class Controller{
      * @param {float} shift 
      */
     splitPointOnMvt(p_id, face_id, t){
+        //console.log("before choose strat");
         let strat = this.chooseSplitPointStrat(p_id, face_id, t);
         if(strat!=-1){
+            //console.log("before apply strat");
             this.splitPoint_changeGeomModel(p_id, face_id, strat); 
         }
+        //console.log("end");
+        return strat;
     }
 
     /**
@@ -369,7 +533,7 @@ class Controller{
      * @param {float} shift 
      */
     splitPoint_changeGeomModel(p_id, face_id, strat){
-        let h = this.pointData.heIndex[p_id];
+        let h = this.pointData.heIndex[p_id][0];
         while(this.halfEdgeData.fIndex[h]!=face_id){
             h = this.halfEdgeData.opposite(h);
             h = this.halfEdgeData.next(h);
@@ -409,8 +573,8 @@ class Controller{
             this.halfEdgeData.pIndex[h_po]     = p2_id;
 
             //update the point splitted
-            if(this.pointData.heIndex[p1_id]==h || this.pointData.heIndex[p1_id]==h_po){
-                this.pointData.heIndex[p1_id] = h1_id;
+            if(this.pointData.heIndex[p1_id][0]==h || this.pointData.heIndex[p1_id][0]==h_po){
+                this.pointData.heIndex[p1_id] = [h1_id];
             }
 
 
@@ -438,8 +602,8 @@ class Controller{
             this.halfEdgeData.pIndex[h_on]     = p2_id;
 
              //update the point splitted
-             if(this.pointData.heIndex[p1_id]==h || this.pointData.heIndex[p1_id]==h_on){
-                this.pointData.heIndex[p1_id] = h1_id;
+             if(this.pointData.heIndex[p1_id][0]==h || this.pointData.heIndex[p1_id][0]==h_on){
+                this.pointData.heIndex[p1_id] = [h1_id];
             }
 
 
@@ -454,7 +618,8 @@ class Controller{
     }
 
     chooseSplitPointStrat(pt_id, moving_face, t){
-        let he = this.pointData.heIndex[pt_id];
+        //console.log("begin strat", pt_id, moving_face);
+        let he = this.pointData.heIndex[pt_id][0];
         let he_moving_face = he;
         while(this.halfEdgeData.fIndex[he_moving_face]!=moving_face){
             he_moving_face = this.halfEdgeData.opposite(he_moving_face);
@@ -466,7 +631,6 @@ class Controller{
 
 
         let acceptable_strat = []; 
-
         //strat 1
         let geom_copy = this.copy();
         geom_copy.faceData.planeEquation[moving_face][3]-=t;
@@ -490,10 +654,9 @@ class Controller{
 
 
         let auto_intersects1 = GeomUtils.intersects([p1,p2],[p3,p4]);
-
             //second face
-        he1 = he_mp_o;
-        he2 = geom_copy.halfEdgeData.next(he1);
+        he2 = geom_copy.halfEdgeData.opposite(he2);
+        he1 = geom_copy.halfEdgeData.previous(he2);
         he3 = geom_copy.halfEdgeData.next(he2);
         he4 = geom_copy.halfEdgeData.next(he3);
         
@@ -514,7 +677,6 @@ class Controller{
         if(!auto_intersects1 && !auto_intersects2){
             acceptable_strat.push(1);
         }
-
         //strat 2
 
         let geom_copy2 = this.copy();
@@ -546,8 +708,8 @@ class Controller{
 
         he2 = geom_copy2.halfEdgeData.opposite(he2);
         he1 = geom_copy2.halfEdgeData.previous(he2);
-        he3 = geom_copy2.halfEdgeData.next(he3);
-        he4 = geom_copy2.halfEdgeData.next(he2);
+        he3 = geom_copy2.halfEdgeData.next(he2);
+        he4 = geom_copy2.halfEdgeData.next(he3);
         
         p1_id = geom_copy2.halfEdgeData.pIndex[he1];
         p2_id = geom_copy2.halfEdgeData.pIndex[he2];
@@ -603,7 +765,6 @@ class Controller{
                 acceptable_strat.splice(1,1);
             }
         }
-        
         if(acceptable_strat.length==0){
             return -1;
         }
@@ -630,187 +791,39 @@ class Controller{
      * 
      * @param {*} edge_id 
      * @returns a boolean telling if the edge can be flipped
-     *  without creating topological issues.
+     *  without creating topological or geometrical issues.
      */
     isflipable(edge_id){
-        let flipable = false;
-
-        let he1 = this.edgeData.heIndex[edge_id];
+        let flipable = true;
+        //first we limit to the case where the 2 points are adjacents to only 3 faces
+        let he1   = this.edgeData.heIndex[edge_id];
         let he2 = this.halfEdgeData.opposite(he1);
-        
-        let p1_id = this.halfEdgeData.pIndex[he1];
-        let p2_id = this.halfEdgeData.pIndex[he2];
-        
+
+        let p1_id = this.halfEdgeData.vertex(he1);
+        let p2_id = this.halfEdgeData.vertex(he2);
+
         let faces1 = this.findAdjacentFaces(p1_id);
         let faces2 = this.findAdjacentFaces(p2_id);
 
-        let commonFaces = Utils.getCommonElts(faces1, faces2);
+        if(faces1.length==3 && faces2.length==3){
+            //then we simulate the flip, and verify for auto-intersections
+            //and points definition
+            let controllerCopy = this.copy();
+            controllerCopy.edgeData.flipable[edge_id] = true;
+            controllerCopy.edgeFlip(edge_id);
 
-        let faces = Utils.mergeListsWithoutDoubles(faces1, faces2);
+            let faces = Utils.mergeListsWithoutDoubles(faces1, faces2);
 
-        let newFaces = Utils.removeElements(faces, commonFaces);
-
-        if(newFaces.length == 2){
-
-            let new_faces1 = Utils.mergeListsWithoutDoubles(newFaces,[commonFaces[0]]);
-            let new_faces2 = Utils.mergeListsWithoutDoubles(newFaces,[commonFaces[1]]);
-            
-            //console.log(new_faces1);
-            let new_face1_equation = this.faceData.planeEquation[new_faces1[0]];
-            let new_face2_equation = this.faceData.planeEquation[new_faces1[1]];
-            let new_face3_equation = this.faceData.planeEquation[new_faces1[2]];
-
-            let new_point1 = GeomUtils.computeIntersectionPoint(new_face1_equation,new_face2_equation,new_face3_equation);
-
-
-            let new_face4_equation = this.faceData.planeEquation[new_faces2[0]];
-            let new_face5_equation = this.faceData.planeEquation[new_faces2[1]];
-            let new_face6_equation = this.faceData.planeEquation[new_faces2[2]];
-
-            let new_point2 = GeomUtils.computeIntersectionPoint(new_face4_equation,new_face5_equation,new_face6_equation);
-
-            flipable = (!isNaN(new_point1[0]))&&(!isNaN(new_point2[0]));
-
-
-            if(flipable){
-                //console.log(edge_id, p1_id, new_point1,p2_id,new_point2)
-                //Faces diminuées
-                let decreased_face1 = Utils.removeElements(faces, new_faces1)[0];
-                let decreased_face2 = Utils.removeElements(faces, new_faces2)[0];
-
-
-                let [exterior_decreased_face1,interior_decreased_face1] = this.getFaceBorders(decreased_face1);
-                let [exterior_decreased_face2,interior_decreased_face2] = this.getFaceBorders(decreased_face2);
-
-
-                
-                let new_exterior_decreased_face1 = Utils.removeElements(exterior_decreased_face1, [p1_id]);
-                let new_exterior_decreased_face2 = Utils.removeElements(exterior_decreased_face2, [p2_id]);
-
-                let new_interior_decreased_face1 = Utils.removeElements(interior_decreased_face1, [p1_id]);
-                let new_interior_decreased_face2 = Utils.removeElements(interior_decreased_face2, [p2_id]);
-                
-                let border1_ext_coords = this.computeBorderCoords(new_exterior_decreased_face1);
-                let border1_int_coords = this.computeBorderCoords(new_interior_decreased_face1);
-                let border2_ext_coords = this.computeBorderCoords(new_exterior_decreased_face2);
-                let border2_int_coords = this.computeBorderCoords(new_interior_decreased_face2);
-
-                let i1_ext_1 = new_exterior_decreased_face1.indexOf(p1_id);
-                let i1_int_1 = new_interior_decreased_face1.indexOf(p1_id);
-                let i1_ext_2 = new_exterior_decreased_face2.indexOf(p1_id);
-                let i1_int_2 = new_interior_decreased_face2.indexOf(p1_id);
-
-                let i2_ext_1 = new_exterior_decreased_face1.indexOf(p2_id);
-                let i2_int_1 = new_interior_decreased_face1.indexOf(p2_id);
-                let i2_ext_2 = new_exterior_decreased_face2.indexOf(p2_id);
-                let i2_int_2 = new_interior_decreased_face2.indexOf(p2_id);
-
-                
-
-                //On remplace les anciennes coordonnées par les nouvelles
-                if(i1_ext_1!=-1){
-                    border1_ext_coords[i1_ext_1] = new_point1;
+            for(let i=0; i<faces.length; i++){
+                flipable = !Certificats.autoIntersects(controllerCopy, faces[i])&&Certificats.pointsWellDefined(controllerCopy, faces[i]);
+                if(!flipable){
+                    break;
                 }
-                if(i1_int_1!=-1){
-                    border1_int_coords[i1_int_1] = new_point1;
-                }
-                if(i1_ext_2!=-1){
-                    border2_ext_coords[i1_ext_2] = new_point1;
-                }
-                if(i1_int_2!=-1){
-                    border2_int_coords[i1_int_2] = new_point1;
-                }
-                if(i2_ext_1!=-1){
-                    border1_ext_coords[i2_ext_1] = new_point2;
-                }
-                if(i2_int_1!=-1){
-                    border1_int_coords[i2_int_1] = new_point2;
-                }
-                if(i2_ext_2!=-1){
-                    border2_ext_coords[i2_ext_2] = new_point2;
-                }
-                if(i2_int_2!=-1){
-                    border2_int_coords[i2_int_2] = new_point2;
-                }
-
-
-                
-                flipable = !GeomUtils.checkAutoIntersection(border1_ext_coords)
-                            && !GeomUtils.checkAutoIntersection(border1_int_coords)
-                            && !GeomUtils.checkAutoIntersection(border2_ext_coords)
-                            && !GeomUtils.checkAutoIntersection(border2_int_coords);
             }
-
-            
-            //Faces augmentées
-            if(flipable){
-                let increased_face1 = Utils.removeElements(Utils.getCommonElts(faces1, new_faces1),commonFaces)[0];
-                let increased_face2 = Utils.removeElements(Utils.getCommonElts(faces2, new_faces2),commonFaces)[0];
-
-                let [new_exterior_increased_face1,new_interior_increased_face1] = this.getFaceBorders(increased_face1);
-                let [new_exterior_increased_face2,new_interior_increased_face2] = this.getFaceBorders(increased_face2);
-
-
-                this.addPointInBorder(new_exterior_increased_face1, p2_id, new_faces2, p1_id);
-                this.addPointInBorder(new_exterior_increased_face2, p1_id, new_faces1, p2_id);
-
-                this.addPointInBorder(new_interior_increased_face1, p2_id, new_faces2, p1_id);
-                this.addPointInBorder(new_interior_increased_face2, p1_id, new_faces1, p2_id);
-
-
-
-
-                let border1_ext_coords = this.computeBorderCoords(new_exterior_increased_face1);
-                let border1_int_coords = this.computeBorderCoords(new_interior_increased_face1);
-                let border2_ext_coords = this.computeBorderCoords(new_exterior_increased_face2);
-                let border2_int_coords = this.computeBorderCoords(new_interior_increased_face2);
-
-                let i1_ext_1 = new_exterior_increased_face1.indexOf(p1_id);
-                let i1_int_1 = new_interior_increased_face1.indexOf(p1_id);
-                let i1_ext_2 = new_exterior_increased_face2.indexOf(p1_id);
-                let i1_int_2 = new_interior_increased_face2.indexOf(p1_id);
-
-                let i2_ext_1 = new_exterior_increased_face1.indexOf(p2_id);
-                let i2_int_1 = new_interior_increased_face1.indexOf(p2_id);
-                let i2_ext_2 = new_exterior_increased_face2.indexOf(p2_id);
-                let i2_int_2 = new_interior_increased_face2.indexOf(p2_id);
-
-                
-
-                //On remplace les anciennes coordonnées par les nouvelles
-                if(i1_ext_1!=-1){
-                    border1_ext_coords[i1_ext_1] = new_point1;
-                }
-                if(i1_int_1!=-1){
-                    border1_int_coords[i1_int_1] = new_point1;
-                }
-                if(i1_ext_2!=-1){
-                    border2_ext_coords[i1_ext_2] = new_point1;
-                }
-                if(i1_int_2!=-1){
-                    border2_int_coords[i1_int_2] = new_point1;
-                }
-                if(i2_ext_1!=-1){
-                    border1_ext_coords[i2_ext_1] = new_point2;
-                }
-                if(i2_int_1!=-1){
-                    border1_int_coords[i2_int_1] = new_point2;
-                }
-                if(i2_ext_2!=-1){
-                    border2_ext_coords[i2_ext_2] = new_point2;
-                }
-                if(i2_int_2!=-1){
-                    border2_int_coords[i2_int_2] = new_point2;
-                }
-
-                flipable = !GeomUtils.checkAutoIntersection(border1_ext_coords)
-                            && !GeomUtils.checkAutoIntersection(border1_int_coords)
-                            && !GeomUtils.checkAutoIntersection(border2_ext_coords)
-                            && !GeomUtils.checkAutoIntersection(border2_int_coords);
-                }
-
         }
-
+        else{
+            flipable=false;
+        }
 
         return flipable;
     }
@@ -834,7 +847,7 @@ class Controller{
      * @param {int} edge_id 
      */
     edgeFlip(edge_id){
-        console.log(edge_id);
+        //console.log(edge_id);
         if(this.edgeData.flipable[edge_id]){
             //edge selected
             let he = this.edgeData.heIndex[edge_id];
@@ -889,11 +902,11 @@ class Controller{
             }
 
             //Points update
-            if(this.pointData.heIndex[p1] == he_po){
-                this.pointData.heIndex[p1] = he;
+            if(this.pointData.heIndex[p1][0] == he_po){
+                this.pointData.heIndex[p1] = [he];
             }
-            if(this.pointData.heIndex[p2] == he_opo){
-                this.pointData.heIndex[p2] = he_o;
+            if(this.pointData.heIndex[p2][0] == he_opo){
+                this.pointData.heIndex[p2] = [he_o];
             }
 
             //Half edges update
@@ -924,6 +937,9 @@ class Controller{
     }
 
     getExterior(faceId){
+        if( this.faceData.hExtIndex[faceId]==undefined){
+            console.log(faceId);
+        }
         let he_0 = this.faceData.hExtIndex[faceId][0];
         let exterior = [];
         let he = he_0;
@@ -1033,6 +1049,18 @@ class Controller{
         }
     }
 
+    deleteFace(f_id){
+        this.faceData.delete(f_id);
+        for(let i=0; i<this.halfEdgeData.count; i++){
+            if(this.halfEdgeData.fIndex[i]==f_id){
+                this.halfEdgeData.fIndex[i]=-1;
+            }
+            else if(this.halfEdgeData.fIndex[i]>f_id){
+                this.halfEdgeData.fIndex[i]-=1;
+            }
+        }
+    }
+
     /**
      * Mets à jour le modèle GML avec les modifications faites par l'utilisateur
      */
@@ -1072,7 +1100,8 @@ class Controller{
 
 
     copy(){
-        return new Controller(this.faceData.copy(), this.pointData.copy(), this.halfEdgeData.copy(), this.edgeData.copy(), this.LoD, this.material);
+        
+        return new Controller(this.faceData.copy(), this.pointData.copy(), this.halfEdgeData.copy(), this.edgeData.copy(), this.LoD, this.material, true);
     }
 
 
@@ -1081,8 +1110,8 @@ class Controller{
 
 
 class DualController extends Controller{
-    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material){
-        super(faceData, pointData, halfEdgeData, edgeData, LoD, material)
+    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy, isDual){
+        super(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy, isDual)
         
         for (let i=0; i<this.vertexData.count; i++){
             let p_id = this.vertexData.pIndex.getX(i);
@@ -1092,6 +1121,7 @@ class DualController extends Controller{
             this.vertexData.coords.setZ(i, z);
         }
         this.vertexData.applyChanges();
+        //console.log("Dual creation");
     }
 
     onChange(){

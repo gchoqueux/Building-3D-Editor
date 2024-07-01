@@ -165,8 +165,8 @@ let building2 = {
     ]
 }
 
-let buildingsJs = [building1, building2];
-*/
+let buildingsJs = [building1, building2];*/
+
 //Toit
 /*
 let roof1 = {

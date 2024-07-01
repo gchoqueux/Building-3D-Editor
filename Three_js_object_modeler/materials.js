@@ -67,9 +67,9 @@ let fShader_buildingDebug = `
         float sel = 1.0 - min( min( sel3.x, sel3.y ), sel3.z );
 
         vec4 diffuseColor = vec4( debug_color, 1. );
-        if (int(faceIndex)==selectedFaceId){
+        /*if (int(faceIndex)==selectedFaceId){
             diffuseColor = vec4( vec3(1.,1.,1.)-diffuseColor.xyz, diffuseColor.w);
-        }
+        }*/
         gl_FragColor.rgb = diffuseColor.rgb;//*(gl_FrontFacing ? 1. : 0.5);
         gl_FragColor.a = 1.;
         if(wireframe){
@@ -116,6 +116,7 @@ let vShader_pointMaterial =
 
     attribute float pIndex;
     uniform float maxPointId;
+    uniform int selectedFaceId;
 
     #include <common>
     #include <color_pars_vertex>
@@ -161,6 +162,10 @@ let vShader_pointMaterial =
 
         gl_PointSize = size;
 
+        if(int(pIndex)==selectedFaceId){
+            gl_PointSize*=2.;
+        }
+
         #ifdef USE_SIZEATTENUATION
 
             bool isPerspective = isPerspectiveMatrix( projectionMatrix );
@@ -183,8 +188,8 @@ let fShader_pointMaterial = `
     uniform float opacity;
     varying float faceIndex;
     varying float vFaceArrity;
-    uniform int selectedFaceId;
     varying vec3 pointColor;
+    uniform int selectedFaceId;
 
     #include <common>
     #include <color_pars_fragment>
@@ -214,7 +219,8 @@ let pointsMaterial = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([
         THREE.ShaderLib.points.uniforms,
         {
-            maxPointId:{value: -1}
+            maxPointId:{value: -1},
+            selectedFaceId:{value: -1}
         }
     ]),
     vertexShader: vShader_pointMaterial,

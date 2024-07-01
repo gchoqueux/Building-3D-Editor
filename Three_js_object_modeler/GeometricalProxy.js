@@ -44,7 +44,15 @@ class PointData{
     }
 
     copy(){
-        return new PointData([...this.coords], [...this.heIndex], [...this.nbAdjacentFaces]);
+        let coords = [];
+        this.coords.forEach(c=>{
+            coords.push([...c]);
+        })
+        let heIndex = [];
+        this.heIndex.forEach(c=>{
+            heIndex.push([...c]);
+        })
+        return new PointData(coords, heIndex, [...this.nbAdjacentFaces]);
     }
 
 
@@ -99,6 +107,9 @@ class HalfEdgeData{
     }
     vertex(he_id){
         return(this.pIndex[he_id]);
+    }
+    face(he_id){
+        return(this.fIndex[he_id]);
     }
     targetPoint(he_id){
         let next = this.next(he_id);
@@ -210,12 +221,37 @@ class FaceData{
         material.needsUpdate = true;
     }
 
-    update(){
-        //On recalcule l'équation de plan
+    add(hExtIndex, hIntIndices, planEquation){
+        this.hExtIndex.push(hExtIndex);
+        this.hIntIndices.push(hIntIndices);
+        this.planeEquation.push(planEquation);
+        this.count+=1;
     }
 
+    delete(f_id){
+        this.planeEquation.splice(f_id, 1);
+        this.hExtIndex.splice(f_id, 1);
+        this.hIntIndices.splice(f_id, 1);
+        this.color.splice(f_id, 1);
+        this.opacity.splice(f_id, 1);
+        this.count-=1;
+    }
+
+
     copy(){
-        return new FaceData([...this.planeEquation], [...this.hExtIndex], [...this.hIntIndices]);
+        let hExtIndex = [];
+        this.hExtIndex.forEach(he=>{
+            hExtIndex.push([...he]);
+        })
+        let hIntIndices = [];
+        this.hIntIndices.forEach(hi=>{
+            hIntIndices.push([...hi]);
+        })
+        let planeEquation = [];
+        this.planeEquation.forEach(pe=>{
+            planeEquation.push([...pe]);
+        })
+        return new FaceData(planeEquation, hExtIndex, hIntIndices);
     }
 
 

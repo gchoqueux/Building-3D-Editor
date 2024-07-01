@@ -1,7 +1,7 @@
 import * as Utils from './utils/utils';
 import * as GeomUtils from './utils/3DGeometricComputes';
 import * as THREE from 'three';
-import { DebugFlipMaterial, FacePointMaterial, FlipEdgeMaterial, SplitPointMaterial } from './materials.js';
+import { FacePointMaterial, FlipEdgeMaterial, SplitPointMaterial } from './materials.js';
 import { Float32ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 
 class ToolBar{
@@ -9,7 +9,6 @@ class ToolBar{
         this.tools = {
             "Navigation":new NavigationTool(), 
             "Shift":new ShiftTool(camera, geometricalController, controls, scene),
-            "SplitPoint":new SplitPointTool(geometricalController, scene),
             "FlipEdge":new FlipEdgeTool(geometricalController, scene)
         };
         this.selectedTool = new NavigationTool();
@@ -24,6 +23,12 @@ class ToolBar{
         this.selectedTool.onUnselect();
         this.selectedTool = this.tools[newTool];
         this.selectedTool.onSelect();
+    }
+
+    setGeometricalController(new_geometricalController){
+        Object.values(this.tools).forEach(tool=>{
+            tool.setGeometricalController(new_geometricalController);
+        })
     }
 
     onMove(event){
@@ -42,6 +47,12 @@ class ToolBar{
         this.selectedTool.onClick(event);
     }
 
+    setScreenSplitRatio(new_screenSplitRatio){
+        Object.values(this.tools).forEach(tool=>{
+            tool.screen_split_ratio = new_screenSplitRatio;
+        })
+    }
+
 }
 
 
@@ -51,8 +62,10 @@ class Tool{
         this.intersectionPoint = new THREE.Vector3(0,0,0);
         this.clicked = false;
         this.selected = false;
+        this.screen_split_ratio = 1.0;
 
     }
+
 
     onMove(event){
 
@@ -79,6 +92,10 @@ class Tool{
     }
     onUnselect(){
         this.selected = false;
+    }
+
+    setGeometricalController(new_geometricalController){
+        this.geometricalController = new_geometricalController;
     }
 
 }
@@ -118,11 +135,11 @@ class ShiftTool extends Tool{
         this.last_intersected = [];
 
 
-        this.verticesPPT = [];
+        /*this.verticesPPT = [];
         this.geometryPPT = new THREE.BufferGeometry();
         this.materialPPT = new THREE.PointsMaterial( { color: 0x00FF00 , size: 0.5} );
         this.projectedPointThree = new THREE.Points(this.geometryPPT, this.materialPPT);
-        scene.add(this.projectedPointThree);
+        scene.add(this.projectedPointThree);*/
 
         
 
@@ -142,13 +159,19 @@ class ShiftTool extends Tool{
 
     }
 
+    setGeometricalController(new_geometricalController){
+        super.setGeometricalController(new_geometricalController);
+        this.recomputeFacePoints();
+    }
+
     onMove(event){
+        //console.log("begin onMove");
         if(this.clicked){
             let faceId = this.geometricalController.faceData.selectedFace;
             if(faceId!=-1){
                 //console.log(faceId);
                 let debugInfo = {};
-                let x = ( 2*event.clientX / window.innerWidth ) * 2 - 1;
+                let x = ( event.clientX / (window.innerWidth*this.screen_split_ratio) ) * 2 - 1;
                 let y = - ( event.clientY / window.innerHeight ) * 2 + 1;
                 let z = 1;
 
@@ -203,28 +226,36 @@ class ShiftTool extends Tool{
 
 
                 
-                
+                //console.log("before shift");
 
-                this.geometricalController.faceShift2(faceId, delta-this.globalDelta);
+                let faceDeleted = this.geometricalController.faceShift2(faceId, delta-this.globalDelta);
+                //console.log("before onChange");
                 this.geometricalController.onChange();
                 //this.lastPicked.copy(pickedPoint);
                 this.globalDelta = delta;
 
+                if(faceDeleted){
+                    this.geometricalController.changeSelectedFace(-1, this.geometricalController.material);
+                    this.geometricalController.changeSelectedFace(-1, this.geometricalController.dualController.pointMaterial);
+                    this.geometricalController.changeSelectedFace(-1, this.faceVerticesMaterial);
+                }
+
                 //this.geometricalController.updateScene();
 
-                this.verticesPPT.push(projectedPoint[0], projectedPoint[1], projectedPoint[2]);
+                /*this.verticesPPT.push(projectedPoint[0], projectedPoint[1], projectedPoint[2]);
 
                 this.geometryPPT.setAttribute( 'position', new THREE.Float32BufferAttribute( this.verticesPPT, 3 ) );
                 
                 this.geometryPPT.getAttribute("position").needsUpdate = true;
-
-
+                */
+                //console.log("before recompute face points");
                 this.recomputeFacePoints();
 
 
             }
             
         }
+        //console.log("end onMove");
     }
 
     onMouseDown(event){
@@ -232,9 +263,10 @@ class ShiftTool extends Tool{
             this.clicked = true;
             this.controls.enabled = false;
             this.globalDelta = 0;
-            this.verticesPPT = [];
+            /*this.verticesPPT = [];
             this.geometryPPT.setAttribute( 'position', new THREE.Float32BufferAttribute( this.verticesPPT, 3 ) );
             this.geometryPPT.getAttribute("position").needsUpdate = true;
+            */
         }
     }
 
@@ -255,21 +287,25 @@ class ShiftTool extends Tool{
         // calculate objects intersecting the picking ray
         //const intersects = raycaster.intersectObjects( scene.children );
         const intersects = raycaster.intersectObject( objects[0] );
+        //console.log(intersects);
         this.last_intersected = intersects;
         
 
 
         if(!this.clicked){
             this.geometricalController.changeSelectedFace(-1, material);
+            this.geometricalController.changeSelectedFace(-1, this.geometricalController.dualController.pointMaterial);
             this.geometricalController.changeSelectedFace(-1, this.faceVerticesMaterial);
-
+            
             if(intersects.length!=0){
                 this.intersectionPoint.copy(intersects[0].point);
                 let triangleIndex = intersects[0].face.a/3;
                 this.geometricalController.changeSelectedFace(triangleIndex, material);
+                this.geometricalController.changeSelectedFace(triangleIndex, this.geometricalController.dualController.pointMaterial);
                 this.geometricalController.changeSelectedFace(triangleIndex, this.faceVerticesMaterial);
             }
         }
+
     }
 
     recomputeFacePoints(){
@@ -293,72 +329,7 @@ class ShiftTool extends Tool{
     }
 }
 
-class SplitPointTool extends Tool{
-    constructor(geometricalController, scene){
-        super();
-        this.distThreshold = 1;
-        this.geometricalController = geometricalController;
 
-        this.scene = scene;
-
-
-        let faceArrity = [];
-        for(let i=0; i<this.geometricalController.vertexData.count; i++){
-            let pt_index = this.geometricalController.vertexData.pIndex.getX(i);
-            faceArrity.push(this.geometricalController.pointData.nbAdjacentFaces[pt_index]);
-        }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute( 'position', this.geometricalController.vertexData.coords);
-        geometry.setAttribute( 'pIndex', this.geometricalController.vertexData.pIndex);
-        geometry.setAttribute( 'faceArrity', new THREE.Float32BufferAttribute(faceArrity,1));
-        this.splitPointMaterial = new SplitPointMaterial( { color: 0x00BB00 } );
-        this.vertices = new THREE.Points( geometry, this.splitPointMaterial );
-        
-
-        console.log(this.geometricalController.vertexData.pIndex);
-
-    }
-    onMove(event){
-        
-    }
-    onMouseDown(event){
-
-    }
-    onMouseUp(event){
-
-    }
-    onRender(raycaster, objects){
-
-        
-        let selectedPointId = -1;
-        let distMin = Infinity;
-        for(let i=0; i<this.geometricalController.pointData.vIndex.length; i++){
-            let vId = this.geometricalController.pointData.vIndex[i];
-            let [x,y,z] = this.geometricalController.vertexData.coords.getXYZ(vId);
-            let d = raycaster.ray.distanceSqToPoint(new THREE.Vector3(x,y,z));
-            if(d<distMin){
-                selectedPointId = i;
-                distMin = d;
-            }
-        }
-        if(distMin<this.distThreshold){
-            this.geometricalController.changeSelectedPoint(selectedPointId, this.splitPointMaterial);
-        }
-        else{
-            this.geometricalController.changeSelectedPoint(-1, this.splitPointMaterial);
-        }
-        
-    }
-
-    onSelect(){
-        super.onSelect();
-        this.scene.add( this.vertices );
-    }
-    onUnselect(){
-        super.onUnselect();
-        this.scene.remove(this.vertices);
-    }
-}
 
 class FlipEdgeTool extends Tool{
     constructor(geometricalController, scene){
@@ -563,6 +534,60 @@ class FlipEdgeTool extends Tool{
 
     }
 
+}
+
+class ObjectSelectionTool extends Tool{
+    constructor(controllersCollection){
+        super();
+        this.intersectionPoint = new THREE.Vector3(0,0,0);
+        this.controllers = controllersCollection;
+
+    }
+
+    onMove(event){
+
+    }
+
+    onMouseDown(event){
+
+    }
+
+    onMouseUp(event){
+
+    }
+
+    onRender(raycaster, objects, material){
+        //reset the color of last intersected objects
+        /*const material = new BuildingMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
+    
+        for (var i=0; i<this.last_intersected.length; i++){
+            this.last_intersected[i].object.material = material;
+        }*/
+
+
+        // calculate objects intersecting the picking ray
+        //const intersects = raycaster.intersectObjects( scene.children );
+        const intersects = raycaster.intersectObject( objects[0] );
+        //console.log(intersects);
+        this.last_intersected = intersects;
+        console.log(intersects);
+
+
+        /*if(!this.clicked){
+            this.geometricalController.changeSelectedFace(-1, material);
+            this.geometricalController.changeSelectedFace(-1, this.geometricalController.dualController.pointMaterial);
+            this.geometricalController.changeSelectedFace(-1, this.faceVerticesMaterial);
+            
+            if(intersects.length!=0){
+                this.intersectionPoint.copy(intersects[0].point);
+                let triangleIndex = intersects[0].face.a/3;
+                this.geometricalController.changeSelectedFace(triangleIndex, material);
+                this.geometricalController.changeSelectedFace(triangleIndex, this.geometricalController.dualController.pointMaterial);
+                this.geometricalController.changeSelectedFace(triangleIndex, this.faceVerticesMaterial);
+            }
+        }*/
+
+    }
 }
 
 export{ToolBar, ShiftTool}

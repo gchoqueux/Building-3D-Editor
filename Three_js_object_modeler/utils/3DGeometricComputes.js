@@ -305,19 +305,26 @@ function intersects(segment1, segment2){
  * 
  */
 function computeIntersectionPoint2(...plans){
-    
     if(plans.length<3){
         console.error("Underconstrained plan")
     }
     else if(plans.length==3){
+        let [a1,b1,c1,d1] = plans[0];
+        let [a2,b2,c2,d2] = plans[1];
+        let [a3,b3,c3,d3] = plans[2];
+
         let A = matrix([[a1,b1,c1],
             [a2,b2,c2],
             [a3,b3,c3]]);
 
+        
+        /*console.log(plans[0], plans[1], plans[2]);
+        console.log(A(),A.det());*/
+
 
         //console.log(A.det());
         if(Math.abs((A.det()))<=0.01){
-        return [NaN,NaN,NaN];
+            return [NaN,NaN,NaN];
         }
 
         let D = matrix([[-d1],
@@ -342,22 +349,51 @@ function computeIntersectionPoint2(...plans){
         //On a besoin de faire seulement 3 tours, car on est en 3 dimensions
 
         //On réorganise les plans
-        [A,D] = reorganize(A,D,0);
+        let new_A_D = reorganize(A,D,0);
+        A = new_A_D[0];
+        D = new_A_D[1];
 
         //on peut appliquer l'algorithme du pivot de gauss
         for(let i=0; i<3; i++){
             let a_i=A[i][i];
-            for(let j=i+1; j<plans.length; j++){
-                let a_j = A[j][i];
-                let c = a_j/a_i;
-                for(let k=i;k<3;k++){
-                    A[j][k] -= A[i][k]*c;
+            if(a_i!=0){
+                for(let j=i+1; j<plans.length; j++){
+                    let a_j = A[j][i];
+                    let c = a_j/a_i;
+                    for(let k=i;k<3;k++){
+                        A[j][k] -= A[i][k]*c;
+                    }
+                    D[j] -= D[i]*c;
                 }
             }
             //On re-vérifie à chaque fois que la prochaine étape n'aura pas
             //un coef de référence valant 0
             [A,D] = reorganize(A,D,i+1);
             
+        }
+
+        let success = true;
+        for(let i=3; i<plans.length; i++){
+            success = D[i]<=0.0001;
+            if(!success){
+                break;
+            }
+        }
+
+        //console.log(A, D);
+
+        if(success){
+            let plan1 = A[0];
+            plan1.push(D[0]);
+            let plan2 = A[1];
+            plan2.push(D[1]);
+            let plan3 = A[2];
+            plan3.push(D[2]);
+
+            return computeIntersectionPoint2(plan1, plan2, plan3);
+        }
+        else{
+            return [NaN,NaN,NaN];
         }
 
     }
@@ -371,9 +407,9 @@ function reorganize(A, D, step){
         //dont le ième coef n'est pas 0 (si il y en a un)
         if (A[i][i]==0){
             let j;
-            for(j=i+1; j<plans.length; j++){
+            for(j=i+1; j<A.length; j++){
                 if(A[j][i]!=0){
-                    m = A[i];
+                    let m = A[i];
                     A[i] = A[j];
                     A[j] = m;
 
@@ -392,4 +428,4 @@ function reorganize(A, D, step){
 
 
 
-export {intersects, checkAutoIntersectionWithLogs, computeToHorizontalMatrix, checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}
+export {computeIntersectionPoint2, intersects, checkAutoIntersectionWithLogs, computeToHorizontalMatrix, checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}

@@ -137,7 +137,9 @@ function distance_Pl_Pl(plan1, plan2){
     let n1 = normalize([a1,b1,c1]);
     let n2 = normalize([a2,b2,c2]);
 
-    return (angle(n1,n2));
+    let alpha = angle(n1,n2);
+
+    return (Math.min(alpha, Math.abs(alpha-Math.PI)));
     
 
 }
@@ -404,27 +406,5 @@ function findElement(a, e){
 }
 
 
-/**
- * Returns a rank for the edge defined by the points of id i and j.
- * @param {int} i 
- * @param {int} j 
- * @returns int
- */
-function computeHalfEdgeRank(i, j){
-    return(j+(i+j)*(i+j+1)/2);
-}
 
-/**
- * Use the bijection (i,j)->j+(i+j)*(i+j+1)/2 to give a rank 
- * to the half edge defined by the points of id i and j.
- * @param {int} i 
- * @param {int} j 
- * @returns int
- */
-function computeEdgeRank(i,j){
-    let M = Math.max(i,j);
-    let m = Math.min(i,j);
-    return this.computeHalfEdgeRank(M,m);
-}
-
-export{computeEdgeRank, computeHalfEdgeRank, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+export{ findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}

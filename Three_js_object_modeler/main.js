@@ -6,10 +6,11 @@ import { buildingMaterialDebug, buildingMaterial, pointsMaterial } from './mater
 
 import { buildingsJs } from './objectCreation.js';
 
-import { GeometryBuilder, ModelBuilder, SceneBuilder, DualBuilder } from './Builder.js';
+import { GeometryBuilder, ModelBuilder, SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder } from './Builders/Builder.js';
 
 import { ToolBar } from './tools.js';
-import { Controller } from './controller.js';
+import { Controller } from './controllers/controller.js';
+import { CityJSONParser } from './Parser.js';
 
 
 const w = window;
@@ -20,13 +21,13 @@ const w = window;
     let triangleId = 15;
     let delta      = 0.05;
 
-    let screen_split_ratio = 0.5;
+    let screen_split_ratio = 1.;
 
 
 
 
     //Reading of the object data
-    let modelBuilder = new ModelBuilder();
+    let modelBuilder = new MockModelBuilder();
     buildingsJs.forEach(
         building=>{
             modelBuilder.build(building);
@@ -49,7 +50,7 @@ const w = window;
     let material_building = buildingMaterial;
     let material = material_building;
 
-    geometryBuilder.build(buildingsModel, 3);
+    geometryBuilder.build(buildingsModel[0], 3);
     console.log(geometryBuilder);
     let geometricalController = geometryBuilder.getScene(material);
     console.log(geometricalController);
@@ -70,11 +71,11 @@ const w = window;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xcccccc);
-    const camera = new THREE.PerspectiveCamera( 75, (window.innerWidth/2) / window.innerHeight, 0.1, 1000 );
+    const camera = new THREE.PerspectiveCamera( 75, (window.innerWidth*screen_split_ratio) / window.innerHeight, 0.1, 1000 );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth/2, window.innerHeight );
+    renderer.setSize( window.innerWidth*screen_split_ratio, window.innerHeight );
     //renderer.setScissorTest( true );
     //containerDiv.appendChild( renderer.domElement );
     document.body.appendChild( renderer.domElement );
@@ -122,11 +123,11 @@ const w = window;
 
     /////////////////////Scene Dual
     const dualRenderer = new THREE.WebGLRenderer({ antialias: true });
-    const dualCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    const dualCamera = new THREE.PerspectiveCamera( 75, window.innerWidth*(1.-screen_split_ratio) / window.innerHeight, 0.1, 1000 );
     const dualControls = new OrbitControls( dualCamera, dualRenderer.domElement );
    
     dualRenderer.setPixelRatio( window.devicePixelRatio );
-    dualRenderer.setSize( window.innerWidth/2, window.innerHeight );
+    dualRenderer.setSize( window.innerWidth*(1.-screen_split_ratio), window.innerHeight );
     document.body.appendChild( dualRenderer.domElement );
     dualControls.update();
     console.log(controls);
@@ -137,10 +138,9 @@ const w = window;
     const dualScene = new THREE.Scene();
     dualScene.background = new THREE.Color(0xbbbbbb);
 
-    let dualBuilder = new DualBuilder();
-    dualBuilder.build(geometricalController);
+    geometricalController.dualBuilder.build(geometricalController);
     let dualMaterial = material_debug.clone();
-    let dualController = dualBuilder.getScene(dualMaterial);
+    let dualController = geometricalController.dualBuilder.getScene(dualMaterial);
     geometricalController.dualController = dualController;
     
     
@@ -148,10 +148,11 @@ const w = window;
     dualPointsGeom.setAttribute( 'position', dualController.vertexData.coords);
     dualPointsGeom.setAttribute( 'pIndex', dualController.vertexData.pIndex);
     let dualPoints = new THREE.Points( dualPointsGeom, pointsMaterial );
-        
+
     dualPoints.material = pointsMaterial;
     pointsMaterial.uniforms.maxPointId.value = dualController.pointData.count;
     pointsMaterial.uniforms.size.value = 20;
+    dualController.pointMaterial = pointsMaterial;
     console.log(dualPoints);
     
     dualScene.add(geometricalController.dualController.vertexData);
@@ -174,26 +175,17 @@ const w = window;
         // calculate pointer position in normalized device coordinates
         // (-1 to +1) for both components
 
-        pointer.x = ( 2*event.clientX / window.innerWidth ) * 2 - 1;
+        pointer.x = ( event.clientX / (window.innerWidth*screen_split_ratio) ) * 2 - 1;
         pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
     }
 
     console.log(objects[0]);
     function render() {
-
-        //objects = [graphicalController.vertexData];
-
-        // update the picking ray with the camera and pointer position
         raycaster.setFromCamera( pointer, camera );
-    
-        //reset the color of last intersected objects
     
         toolBar.selectedTool.onRender(raycaster, objects, material);
         
-
-    
-        //renderer.render( scene, camera );
     }
 
     w.addEventListener( 'pointermove', onPointerMove );
@@ -275,7 +267,7 @@ const w = window;
     //Tool selection
     let navigationButton = document.getElementById("navigation_button");
     let shiftButton      = document.getElementById("shift_button");
-    let splitPointButton = document.getElementById("split_point_button");
+    //let splitPointButton = document.getElementById("split_point_button");
     let flipEdgeButton   = document.getElementById("flip_edge_button");
 
     navigationButton.onclick = function(ev){
@@ -284,13 +276,64 @@ const w = window;
     shiftButton.onclick = function(ev){
         toolBar.changeTool("Shift");
     }
-    splitPointButton.onclick = function(ev){
+    /*splitPointButton.onclick = function(ev){
         toolBar.changeTool("SplitPoint");
-    }
+    }*/
     flipEdgeButton.onclick = function(ev){
         toolBar.changeTool("FlipEdge");
     }
 
+    //File selection
+    const fileInput = document.querySelector("input");
+    fileInput.addEventListener("change", createFromFile);
+
+    function createFromFile(){
+        const files = fileInput.files;
+        //console.log(files[0]);
+        const file = URL.createObjectURL(files[0]);
+        let parser = new CityJSONParser();
+        let cityJSON_promise = parser.loadFile(file);
+        
+        cityJSON_promise.then(cityJSON_object=>{
+            let cityJSONbuilder = new CityJSONModelBuilder();
+            cityJSONbuilder.build(cityJSON_object);
+            let buildings = cityJSONbuilder.getBuildings();
+            console.log(buildings);
+            let geometryBuilder = new GeometryBuilder();
+            let controllers = [];
+            buildings.forEach(building=>{
+                geometryBuilder.build(building,3);//TO DO : Gérer le LOD
+                console.log(geometryBuilder);
+                let geometricalController = geometryBuilder.getScene(material);
+                console.log(geometricalController);
+                controllers.push(geometricalController);
+                changeGeometricController(geometricalController);
+            })
+            console.log("IMPORT SUCCEED");
+            
+        })
+    }
+
+    //Embedding Selection
+    const embeddingList = document.getElementById("embeddingSelect");
+    function chooseEmbedding(){
+        const embeddingName = embeddingList.value;
+        geometricalController.setEmbedding(embeddingName);
+    }
+
+    embeddingList.addEventListener("change", chooseEmbedding);
+
+    let displayDualSwitch = document.getElementById("display_dual_switch");
+    displayDualSwitch.onchange = function(e){
+        if(e.target.checked){
+            screen_split_ratio=0.5;
+        }
+        else{
+            screen_split_ratio=1.0;
+        }
+        toolBar.setScreenSplitRatio(screen_split_ratio);
+        onWindowResize();
+    }
 
     //Debug tools
     let wireframe_switch = document.getElementById("wireframe_switch");
@@ -317,16 +360,44 @@ const w = window;
 
     function onWindowResize() {
 
-        camera.aspect = window.innerWidth / (2*window.innerHeight);
+        camera.aspect = window.innerWidth*screen_split_ratio / window.innerHeight;
         camera.updateProjectionMatrix();
 
-        renderer.setSize( window.innerWidth/2, window.innerHeight );
+        renderer.setSize( window.innerWidth*screen_split_ratio, window.innerHeight );
 
-        dualCamera.aspect = window.innerWidth / (2*window.innerHeight);
+        dualCamera.aspect = window.innerWidth*(1.-screen_split_ratio) / window.innerHeight;
         dualCamera.updateProjectionMatrix();
 
-        dualRenderer.setSize( window.innerWidth/2, window.innerHeight );
+        dualRenderer.setSize( window.innerWidth*(1.-screen_split_ratio), window.innerHeight );
 
     }
     window.addEventListener( 'resize', onWindowResize );
+
+    function changeGeometricController(new_geometricController){
+        scene.remove(geometricalController.vertexData);
+        dualScene.remove(geometricalController.dualController.vertexData);
+        geometricalController = new_geometricController;
+        toolBar.setGeometricalController(new_geometricController);
+        scene.add(geometricalController.vertexData);
+        objects = [geometricalController.vertexData];
+
+        geometricalController.dualBuilder.build(geometricalController);
+        dualController = geometricalController.dualBuilder.getScene(dualMaterial);
+        geometricalController.dualController = dualController;
+
+        
+        dualPointsGeom.setAttribute( 'position', dualController.vertexData.coords);
+        dualPointsGeom.setAttribute( 'pIndex', dualController.vertexData.pIndex);
+
+        dualPointsGeom.getAttribute('position').needsUpdate = true;
+        dualPointsGeom.getAttribute('pIndex').needsUpdate = true;
+        dualPoints = new THREE.Points( dualPointsGeom, pointsMaterial );
+            
+        pointsMaterial.uniforms.maxPointId.value = dualController.pointData.count;
+        pointsMaterial.uniforms.size.value = 20;
+        geometricalController.dualController.pointMaterial = pointsMaterial;
+
+
+        dualScene.add(geometricalController.dualController.vertexData);
+    }
 }

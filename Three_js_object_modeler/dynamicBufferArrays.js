@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-class dynamicBufferAttribute extends THREE.BufferAttribute{
+class DynamicBufferAttribute extends THREE.BufferAttribute{
     constructor(array, itemSize, normalized=false){
         super(array, itemSize, normalized);
         this.allocatedSize = this.count;
@@ -114,7 +114,7 @@ class dynamicBufferAttribute extends THREE.BufferAttribute{
 
 }
 
-class Float32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
+class Float32ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     constructor(array, itemSize, normalized=false){
         super( array , itemSize, normalized);
     }
@@ -151,7 +151,7 @@ class Float32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 }
 
 
-class UInt16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
+class UInt16ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     constructor(array, itemSize, normalized=false){
         super( array , itemSize, normalized);
     }
@@ -196,7 +196,7 @@ class UInt16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 
 }
 
-class Int16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
+class Int16ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     constructor(array, itemSize, normalized=false){
         super( array , itemSize, normalized);
     }
@@ -241,7 +241,7 @@ class Int16ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
 }
 
 
-class Int32ArrayDynamicBufferAttribute extends dynamicBufferAttribute{
+class Int32ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     constructor(array, itemSize, normalized=false){
         super( array , itemSize, normalized);
     }
