@@ -986,8 +986,10 @@ class DebugBuildingMaterial extends THREE.MeshBasicMaterial{
 
 let buildingMaterial = new BuildingMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
 
+let buildingNotSelectedMaterial = new THREE.MeshPhongMaterial({color:0xffffff, reflectivity:0.3, shininess : 10, specular : 0xcccccc});
+buildingNotSelectedMaterial.side = THREE.DoubleSide;
 
-export {pointsMaterial, buildingMaterial, buildingMaterialDebug, DebugFlipMaterial, FlipEdgeMaterial, FacePointMaterial, SplitPointMaterial}
+export {buildingNotSelectedMaterial, pointsMaterial, buildingMaterial, buildingMaterialDebug, DebugFlipMaterial, FlipEdgeMaterial, FacePointMaterial, SplitPointMaterial}
 
 
 

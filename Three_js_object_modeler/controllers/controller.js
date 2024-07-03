@@ -8,6 +8,7 @@ import { DualBuilder } from '../Builders/Builder';
 import { embeddings } from '../GeometricalEmbedding';
 import * as Certificats from "../certificats";
 import { isTopologicallyValid } from '../validityCheck';
+import * as THREE from 'three'
 
 class Controller{
     static epsilon = 0.000001;
@@ -110,6 +111,10 @@ class Controller{
         }
     }
 
+    buildDual(dualMaterial, dualPointMaterial){
+        this.dualBuilder.build(this);
+        this.dualController = this.dualBuilder.getScene(dualMaterial, dualPointMaterial);
+    }
 
 
 
@@ -1110,7 +1115,7 @@ class Controller{
 
 
 class DualController extends Controller{
-    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy, isDual){
+    constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy, isDual, pointsMaterial){
         super(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy, isDual)
         
         for (let i=0; i<this.vertexData.count; i++){
@@ -1122,6 +1127,17 @@ class DualController extends Controller{
         }
         this.vertexData.applyChanges();
         //console.log("Dual creation");
+
+                
+        let dualPointsGeom = new THREE.BufferGeometry();
+        dualPointsGeom.setAttribute( 'position', this.vertexData.coords);
+        dualPointsGeom.setAttribute( 'pIndex', this.vertexData.pIndex);
+        this.dualPoints = new THREE.Points( dualPointsGeom, pointsMaterial );
+
+        this.dualPoints.material = pointsMaterial;
+        pointsMaterial.uniforms.maxPointId.value = this.pointData.count;
+        pointsMaterial.uniforms.size.value = 20;
+        this.pointMaterial = pointsMaterial;
     }
 
     onChange(){
@@ -1135,8 +1151,15 @@ class DualController extends Controller{
             this.vertexData.coords.setZ(i, z);
         }
         this.vertexData.applyChanges();
+        this.dualPoints.geometry.setAttribute( 'position', this.vertexData.coords);
+        this.dualPoints.geometry.setAttribute( 'pIndex', this.vertexData.pIndex);
+        
+        this.dualPoints.geometry.getAttribute('position').needsUpdate = true;
+        this.dualPoints.geometry.getAttribute('pIndex').needsUpdate = true;
 
     }
+
+    
 }
 
 

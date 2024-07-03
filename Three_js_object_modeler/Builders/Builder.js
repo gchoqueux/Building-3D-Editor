@@ -13,9 +13,10 @@ class SceneBuilder{
         this.vertex_data = {};
     }
     build(geometricalController, material){
+        let objId = geometricalController.id;
         this.computeTriangulation(geometricalController);
         console.log(this.triangleData);
-        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], 'faceBorder':[]}
+        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], /*'objIndex':[],*/ 'faceBorder':[]}
         for(let i=0; i<this.triangleData.count; i++){
             let p1_id = this.triangleData.pIndex[3*i];
             let p2_id = this.triangleData.pIndex[3*i+1];
@@ -35,6 +36,7 @@ class SceneBuilder{
 
             let faceId = this.triangleData.fIndex[i];
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
+            //this.vertex_data.objIndex.push(objId,objId,objId);
 
             let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
             
@@ -73,11 +75,12 @@ class SceneBuilder{
 
         this.vertexData_object = new VertexData(this.vertex_data.position, this.vertex_data.normal,
                                                 this.vertex_data.uv, this.vertex_data.fIndex, 
-                                                this.vertex_data.pIndex, this.vertex_data.faceBorder, material)
+                                                this.vertex_data.pIndex, objId, this.vertex_data.faceBorder, material)
     }
     update(geometricalController, material){
+        let objId = geometricalController.id;
         this.computeTriangulation(geometricalController);
-        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], 'faceBorder':[]}
+        this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], /*'objIndex':[],*/ 'faceBorder':[]}
         for(let i=0; i<this.triangleData.count; i++){
             let p1_id = this.triangleData.pIndex[3*i];
             let p2_id = this.triangleData.pIndex[3*i+1];
@@ -96,6 +99,7 @@ class SceneBuilder{
 
             let faceId = this.triangleData.fIndex[i];
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
+            //this.vertex_data.objIndex.push(objId,objId,objId);
 
             let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
             this.vertex_data.normal.push(...normal);
@@ -132,7 +136,7 @@ class SceneBuilder{
         }
         this.vertexData_object.update(this.vertex_data.position, this.vertex_data.normal,
             this.vertex_data.uv, this.vertex_data.fIndex, 
-            this.vertex_data.pIndex, this.vertex_data.faceBorder, material);
+            this.vertex_data.pIndex, objId, this.vertex_data.faceBorder, material);
     }
     computeTriangulation(geometricalController){
         this.triangle_data = {'pIndex':[], 'fIndex':[]};
@@ -319,8 +323,8 @@ class DualBuilder{
      * 
      * @returns A Controller object corresponding to this scene.
      */
-    getScene(material){
-        return (new DualController(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material, false, true));   
+    getScene(material, pointsMaterial){
+        return (new DualController(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material, false, true, pointsMaterial));   
     }
 
     updateScene(material, controller){

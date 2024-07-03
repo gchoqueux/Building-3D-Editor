@@ -2,15 +2,15 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 
-import { buildingMaterialDebug, buildingMaterial, pointsMaterial } from './materials.js';
+import { buildingMaterialDebug, buildingMaterial, pointsMaterial, buildingNotSelectedMaterial } from './materials.js';
 
 import { buildingsJs } from './objectCreation.js';
 
-import { GeometryBuilder, ModelBuilder, SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder } from './Builders/Builder.js';
+import { GeometryBuilder,MockModelBuilder, CityJSONModelBuilder } from './Builders/Builder.js';
 
 import { ToolBar } from './tools.js';
-import { Controller } from './controllers/controller.js';
 import { CityJSONParser } from './Parser.js';
+import { ControllersCollection } from './controllers/controllersCollection.js';
 
 
 const w = window;
@@ -50,19 +50,16 @@ const w = window;
     let material_building = buildingMaterial;
     let material = material_building;
 
+    let controllers = new ControllersCollection([],3);
+
     geometryBuilder.build(buildingsModel[0], 3);
     console.log(geometryBuilder);
     let geometricalController = geometryBuilder.getScene(material);
-    console.log(geometricalController);
     
     //Pour le debug graphique
     material_debug.uniforms.maxPointId.value = geometricalController.pointData.count;
     material_debug.uniforms.maxFaceId.value = geometricalController.faceData.count;
     
-    
-
-    let objects = [geometricalController.vertexData];
-
 
 
     //////////////////////////////Scene creation
@@ -113,33 +110,36 @@ const w = window;
     //const controls = new FlyControls( camera, renderer.domElement );
     controls.update();
 
-
-    scene.add(geometricalController.vertexData);
-
-
-
-
-
-
     /////////////////////Scene Dual
     const dualRenderer = new THREE.WebGLRenderer({ antialias: true });
     const dualCamera = new THREE.PerspectiveCamera( 75, window.innerWidth*(1.-screen_split_ratio) / window.innerHeight, 0.1, 1000 );
     const dualControls = new OrbitControls( dualCamera, dualRenderer.domElement );
-   
+
     dualRenderer.setPixelRatio( window.devicePixelRatio );
     dualRenderer.setSize( window.innerWidth*(1.-screen_split_ratio), window.innerHeight );
     document.body.appendChild( dualRenderer.domElement );
     dualControls.update();
-    console.log(controls);
-    console.log(dualControls);
 
     dualCamera.position.y = 10;
 
     const dualScene = new THREE.Scene();
     dualScene.background = new THREE.Color(0xbbbbbb);
+    let dualMaterial = material_debug.clone();
+    geometricalController.buildDual(dualMaterial, pointsMaterial);
+    console.log(controllers);
+
+    controllers.addController(geometricalController, scene);
+    controllers.changeSelectedController(geometricalController.id, dualScene);
+    console.log(controllers.getSelectedController());
+    
+    
+
+
+
+   /*
 
     geometricalController.dualBuilder.build(geometricalController);
-    let dualMaterial = material_debug.clone();
+   
     let dualController = geometricalController.dualBuilder.getScene(dualMaterial);
     geometricalController.dualController = dualController;
     
@@ -156,7 +156,7 @@ const w = window;
     console.log(dualPoints);
     
     dualScene.add(geometricalController.dualController.vertexData);
-    dualScene.add(dualPoints);
+    dualScene.add(dualPoints);*/
 
 
 
@@ -180,34 +180,17 @@ const w = window;
 
     }
 
-    console.log(objects[0]);
     function render() {
         raycaster.setFromCamera( pointer, camera );
     
-        toolBar.selectedTool.onRender(raycaster, objects, material);
+        toolBar.selectedTool.onRender(raycaster, material);
         
     }
 
     w.addEventListener( 'pointermove', onPointerMove );
 
 
-
-
-
-    //event listeners
-
-    function recomputeDualPoints(geometricalController, dualPoints){
-
-        
-        dualPoints.geometry.setAttribute( 'position', geometricalController.dualController.vertexData.coords);
-        dualPoints.geometry.setAttribute( 'pIndex', geometricalController.dualController.vertexData.pIndex);
-        
-        dualPoints.geometry.getAttribute('position').needsUpdate = true;
-        dualPoints.geometry.getAttribute('pIndex').needsUpdate = true;
-    }
-
-
-    let toolBar = new ToolBar(camera, geometricalController, controls, scene);
+    let toolBar = new ToolBar(camera, controllers, controls, scene, dualScene);
     toolBar.changeTool("Shift");
 
     
@@ -222,7 +205,7 @@ const w = window;
         }*/
         /*let [x,y,z] = geometricalController.dualController.pointData.coords[3];
         console.log("==>",x,",",y,",",z);*/
-        recomputeDualPoints(geometricalController, dualPoints)
+        //recomputeDualPoints(geometricalController, dualPoints)
         dualScene.remove(geometricalController.dualController.vertexData);
         toolBar.onMove(event,scene);
         dualScene.add(geometricalController.dualController.vertexData)
@@ -265,10 +248,10 @@ const w = window;
 
 
     //Tool selection
-    let navigationButton = document.getElementById("navigation_button");
-    let shiftButton      = document.getElementById("shift_button");
-    //let splitPointButton = document.getElementById("split_point_button");
-    let flipEdgeButton   = document.getElementById("flip_edge_button");
+    let navigationButton   = document.getElementById("navigation_button");
+    let shiftButton        = document.getElementById("shift_button");
+    let selectObjectButton = document.getElementById("select_object_button");
+    let flipEdgeButton     = document.getElementById("flip_edge_button");
 
     navigationButton.onclick = function(ev){
         toolBar.changeTool("Navigation");
@@ -276,9 +259,9 @@ const w = window;
     shiftButton.onclick = function(ev){
         toolBar.changeTool("Shift");
     }
-    /*splitPointButton.onclick = function(ev){
-        toolBar.changeTool("SplitPoint");
-    }*/
+    selectObjectButton.onclick = function(ev){
+        toolBar.changeTool("ObjectSelection");
+    }
     flipEdgeButton.onclick = function(ev){
         toolBar.changeTool("FlipEdge");
     }
@@ -300,14 +283,14 @@ const w = window;
             let buildings = cityJSONbuilder.getBuildings();
             console.log(buildings);
             let geometryBuilder = new GeometryBuilder();
-            let controllers = [];
             buildings.forEach(building=>{
                 geometryBuilder.build(building,3);//TO DO : Gérer le LOD
                 console.log(geometryBuilder);
-                let geometricalController = geometryBuilder.getScene(material);
+                let geometricalController = geometryBuilder.getScene(buildingNotSelectedMaterial);
+                geometricalController.buildDual(dualMaterial, pointsMaterial);
                 console.log(geometricalController);
-                controllers.push(geometricalController);
-                changeGeometricController(geometricalController);
+                controllers.addController(geometricalController, scene);
+                controllers.changeSelectedController(geometricalController.id, dualScene);
             })
             console.log("IMPORT SUCCEED");
             
@@ -352,7 +335,7 @@ const w = window;
         else{
             material = material_building;
         }
-        geometricalController.changeMaterial(material);
+        controllers.changeMaterial(material);
     }
 
 
@@ -372,32 +355,4 @@ const w = window;
 
     }
     window.addEventListener( 'resize', onWindowResize );
-
-    function changeGeometricController(new_geometricController){
-        scene.remove(geometricalController.vertexData);
-        dualScene.remove(geometricalController.dualController.vertexData);
-        geometricalController = new_geometricController;
-        toolBar.setGeometricalController(new_geometricController);
-        scene.add(geometricalController.vertexData);
-        objects = [geometricalController.vertexData];
-
-        geometricalController.dualBuilder.build(geometricalController);
-        dualController = geometricalController.dualBuilder.getScene(dualMaterial);
-        geometricalController.dualController = dualController;
-
-        
-        dualPointsGeom.setAttribute( 'position', dualController.vertexData.coords);
-        dualPointsGeom.setAttribute( 'pIndex', dualController.vertexData.pIndex);
-
-        dualPointsGeom.getAttribute('position').needsUpdate = true;
-        dualPointsGeom.getAttribute('pIndex').needsUpdate = true;
-        dualPoints = new THREE.Points( dualPointsGeom, pointsMaterial );
-            
-        pointsMaterial.uniforms.maxPointId.value = dualController.pointData.count;
-        pointsMaterial.uniforms.size.value = 20;
-        geometricalController.dualController.pointMaterial = pointsMaterial;
-
-
-        dualScene.add(geometricalController.dualController.vertexData);
-    }
 }

@@ -1,13 +1,6 @@
 import { Point3D, Polygon, LinearRing, MultiSurface } from "../CityGMLGeometricModel";
-import { VertexData, TriangleData } from "../graphicalModels";
-import { PointData, FaceData, HalfEdgeData, EdgeData } from "../GeometricalProxy";
-import { Building, BuildingPart, ClosureSurface, WallSurface, FloorSurface, OuterFloorSurface, GroundSurface, RoofSurface } from "../CityGMLLogicalModel";
-import { Controller, DualController } from "../controllers/controller";
-import * as Utils from '../utils/utils';
-import matrix from 'matrix-js';
-import Earcut from "earcut";
-import * as GeomUtils from '../utils/3DGeometricComputes';
-import { embeddings } from "../GeometricalEmbedding";
+import { Building, BuildingPart, WallSurface} from "../CityGMLLogicalModel";
+
 
 
 class ModelBuilder{
