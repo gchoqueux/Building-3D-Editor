@@ -1,3 +1,8 @@
 export default {
-    base : '/3D-Viewer/'
+    base : '/3D-Viewer/',
+    build: {
+      rollupOptions:{
+        external:[]
+      }
+    }
   }
