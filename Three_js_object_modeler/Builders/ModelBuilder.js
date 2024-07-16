@@ -95,7 +95,7 @@ class MockModelBuilder extends ModelBuilder{
                 let maxFaceId = Polygon.maxId-1;
                 buildingParts.push(new BuildingPart(bp_thematicSurfaces, minPointId, maxPointId, minFaceId, maxFaceId));
             })
-            this.buildings.push(new Building(buildingParts));
+        this.buildings.push(new Building(buildingParts));
     }
 }
 
@@ -108,19 +108,22 @@ class CityJSONModelBuilder extends ModelBuilder{
 
     build(cityJSONObject){
         console.log(cityJSONObject)
-        let buildingParts = [];
 
         let cityObjectsValues = Object.values(cityJSONObject.CityObjects);
         let i=0;
         cityObjectsValues.forEach(cityObject=>{
+            let buildingParts = [];
             //TODO : make a building with an aggregation of building parts
             //console.log(cityObject);
             //TODO : Do something with the attributes
             
             //i limit the number of buildings
-            i++;
-            if(i<=100){
-                cityObject.geometry.forEach(geom=>{
+            //TODO : Gérer le cas des bâtiments composés de plusieurs bâtiments
+            //(sans géométrie)
+            if(i<=0 && cityObject.geometry.length!=0){
+                i++;
+                try{
+                    cityObject.geometry.forEach(geom=>{
                     let minPointId = Point3D.maxId;
                     let minFaceId = Polygon.maxId;
                     let bp_points = [];
@@ -138,6 +141,7 @@ class CityJSONModelBuilder extends ModelBuilder{
                                 else{
                                     bp_points_indices.push(p_index);
                                     let [x,y,z] = cityJSONObject.vertices[p_index];
+                                    console.log(Point3D.maxId,x, y, z );
                                     let new_point3D = new Point3D(x,y,z);
                                     bp_points.push(new_point3D);
                                     exteriorPointsList.push(new_point3D);
@@ -183,9 +187,13 @@ class CityJSONModelBuilder extends ModelBuilder{
                     buildingParts.push(new BuildingPart(bp_thematicSurfaces, minPointId, maxPointId, minFaceId, maxFaceId));
                     })
                 }
-
-            })
-        this.buildings.push(new Building(buildingParts));
+                catch(error){
+                    console.error("Building "+i+" could not be imported due to "+error);
+                }
+                this.buildings.push(new Building(buildingParts));
+            }
+        })
+        
         console.log("result ====> ",this.buildings);
     }
 }

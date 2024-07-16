@@ -2,16 +2,18 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 
-import { buildingMaterialDebug, buildingMaterial, pointsMaterial, buildingNotSelectedMaterial } from './materials.js';
+import { dualMaterial, buildingMaterialDebug, buildingMaterial, pointsMaterial, buildingNotSelectedMaterial } from './materials.js';
 
-import { buildingsJs } from './objectCreation.js';
+import { mock_builds } from './objectCreation.js';
 
 import { GeometryBuilder,MockModelBuilder, CityJSONModelBuilder } from './Builders/Builder.js';
 
 import { ToolBar } from './tools.js';
 import { CityJSONParser } from './Parser.js';
 import { ControllersCollection } from './controllers/controllersCollection.js';
+import { loaders } from './loaders/loaders.js';
 
+import * as Utils from './utils/utils.js';
 
 const w = window;
 
@@ -22,21 +24,6 @@ const w = window;
     let delta      = 0.05;
 
     let screen_split_ratio = 1.;
-
-
-
-
-    //Reading of the object data
-    let modelBuilder = new MockModelBuilder();
-    buildingsJs.forEach(
-        building=>{
-            modelBuilder.build(building);
-        }
-    )
-    let buildingsModel = modelBuilder.getBuildings();
-    console.log(buildingsModel[0]);
-
-    let geometryBuilder = new GeometryBuilder();
 
     //Pour le debug graphique
     const material_debug = buildingMaterialDebug;
@@ -50,17 +37,6 @@ const w = window;
     let material_building = buildingMaterial;
     let material = material_building;
 
-    let controllers = new ControllersCollection([],3);
-
-    geometryBuilder.build(buildingsModel[0], 3);
-    console.log(geometryBuilder);
-    let geometricalController = geometryBuilder.getScene(material);
-    
-    //Pour le debug graphique
-    material_debug.uniforms.maxPointId.value = geometricalController.pointData.count;
-    material_debug.uniforms.maxFaceId.value = geometricalController.faceData.count;
-    
-
 
     //////////////////////////////Scene creation
 
@@ -68,7 +44,7 @@ const w = window;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xcccccc);
-    const camera = new THREE.PerspectiveCamera( 75, (window.innerWidth*screen_split_ratio) / window.innerHeight, 0.1, 1000 );
+    const camera = new THREE.PerspectiveCamera( 75, (window.innerWidth*screen_split_ratio) / window.innerHeight, 0.1, 100000 );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio( window.devicePixelRatio );
@@ -77,37 +53,32 @@ const w = window;
     //containerDiv.appendChild( renderer.domElement );
     document.body.appendChild( renderer.domElement );
 
-    const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+
+    let sun_power = 0.3;
+    let dist_sun  = 1000;
+
+    const light = new THREE.AmbientLight( 0xaaaaaa ); // soft white light
     scene.add( light );
 
-    var pLight = new THREE.PointLight( 0xffffff, 1, 100 );
-    pLight.position.set( 50, 50, 50 );  
-    scene.add( pLight );
+    var pLight1 = new THREE.PointLight( 0xffffff, sun_power );
+    pLight1.position.set( 50*dist_sun, 50*dist_sun, 50*dist_sun );  
+    scene.add( pLight1 );
 
-    var pLight2 = new THREE.PointLight( 0xffffff, 1, 100 );
-    pLight2.position.set( -50, 50, 50 );
+    var pLight2 = new THREE.PointLight( 0xffffff, sun_power );
+    pLight2.position.set( -50*dist_sun, 50*dist_sun, 50*dist_sun );
     scene.add( pLight2 );
 
-    var pLight3 = new THREE.PointLight( 0xffffff, 1, 100 );
-    pLight3.position.set( 50, -50, 50 );
+    var pLight3 = new THREE.PointLight( 0xffffff, sun_power );
+    pLight3.position.set( 50*dist_sun, -50*dist_sun, 50*dist_sun );
     scene.add( pLight3 );
 
 
     camera.position.y = 10;
-
-    //Ground creation
-
-    const geometry = new THREE.PlaneGeometry( 1000, 1000 );
-    geometry.rotateX(-Math.PI/2);
     
-    const groundMaterial = new THREE.MeshPhongMaterial({color:0xffffff, reflectivity:0.5, shininess : 40, specular : 0x000000});
-    const plane = new THREE.Mesh( geometry, groundMaterial );
-    //scene.add( plane );
 
     //Controls
 
     const controls = new OrbitControls( camera, renderer.domElement );
-    //const controls = new FlyControls( camera, renderer.domElement );
     controls.update();
 
     /////////////////////Scene Dual
@@ -124,43 +95,11 @@ const w = window;
 
     const dualScene = new THREE.Scene();
     dualScene.background = new THREE.Color(0xbbbbbb);
-    let dualMaterial = material_debug.clone();
-    geometricalController.buildDual(dualMaterial, pointsMaterial);
+    
+
+    let controllers = new ControllersCollection([],3, scene, dualScene, dualMaterial, pointsMaterial);
+    let threeObjects = [];
     console.log(controllers);
-
-    controllers.addController(geometricalController, scene);
-    controllers.changeSelectedController(geometricalController.id, dualScene);
-    console.log(controllers.getSelectedController());
-    
-    
-
-
-
-   /*
-
-    geometricalController.dualBuilder.build(geometricalController);
-   
-    let dualController = geometricalController.dualBuilder.getScene(dualMaterial);
-    geometricalController.dualController = dualController;
-    
-    
-    let dualPointsGeom = new THREE.BufferGeometry();
-    dualPointsGeom.setAttribute( 'position', dualController.vertexData.coords);
-    dualPointsGeom.setAttribute( 'pIndex', dualController.vertexData.pIndex);
-    let dualPoints = new THREE.Points( dualPointsGeom, pointsMaterial );
-
-    dualPoints.material = pointsMaterial;
-    pointsMaterial.uniforms.maxPointId.value = dualController.pointData.count;
-    pointsMaterial.uniforms.size.value = 20;
-    dualController.pointMaterial = pointsMaterial;
-    console.log(dualPoints);
-    
-    dualScene.add(geometricalController.dualController.vertexData);
-    dualScene.add(dualPoints);*/
-
-
-
-
 
 
 
@@ -191,7 +130,7 @@ const w = window;
 
 
     let toolBar = new ToolBar(camera, controllers, controls, scene, dualScene);
-    toolBar.changeTool("Shift");
+    //toolBar.changeTool("Shift");
 
     
 
@@ -206,9 +145,13 @@ const w = window;
         /*let [x,y,z] = geometricalController.dualController.pointData.coords[3];
         console.log("==>",x,",",y,",",z);*/
         //recomputeDualPoints(geometricalController, dualPoints)
-        dualScene.remove(geometricalController.dualController.vertexData);
+        if(controllers.getSelectedController()){
+            dualScene.remove(controllers.getSelectedController().dualController.vertexData);
+        }
         toolBar.onMove(event,scene);
-        dualScene.add(geometricalController.dualController.vertexData)
+        if(controllers.getSelectedController()){
+            dualScene.add(controllers.getSelectedController().dualController.vertexData);
+        }
     }
     function onMouseUp(event){
         toolBar.onMouseUp(event,scene);
@@ -217,7 +160,30 @@ const w = window;
         toolBar.onMouseDown(event,scene);
     }
     function onClick(event){
-        toolBar.onClick(event,scene);
+        if(toolBar.onClick(event,scene)){
+            if(controllers.getSelectedController()){
+                let vertex_data = controllers.getSelectedController().vertexData;
+                vertex_data.geometry.computeBoundingSphere();
+                let center = vertex_data.geometry.boundingSphere.center;
+                let r = vertex_data.geometry.boundingSphere.radius;
+                
+
+                /*let diag = new THREE.Vector3();
+                camera.getWorldDirection(diag);
+                diag.multiplyScalar(2*r);
+                let pos = center.clone().add(diag);*/
+
+
+                let camTarget = controls.target;
+                let camPos = camera.position;
+                let camLookAtVect = new THREE.Vector3().copy(camTarget);
+                camLookAtVect.sub(camPos).normalize().multiplyScalar(-2*r);
+
+                let pos = center.clone().add(camLookAtVect);
+                moveCam(pos, center); 
+            }
+            
+        }
     }
 
     document.addEventListener('mousedown', onMouseDown);
@@ -277,31 +243,99 @@ const w = window;
         let parser = new CityJSONParser();
         let cityJSON_promise = parser.loadFile(file);
         
-        cityJSON_promise.then(cityJSON_object=>{
-            let cityJSONbuilder = new CityJSONModelBuilder();
+        
+        cityJSON_promise.then(cityJSON_array=>{
+            console.log(cityJSON_array);
+            cityJSON_array.forEach(cityJSON_object=>{
+                let threeGroup = loaders.CityJSONLoader.loadObjectGraphics(cityJSON_object, scene);
+            
+                
+                //scene.add( threeGroup );
+                //console.log(centerJSON);
+                threeGroup.traverse(threeObj=>{
+                    if(threeObj.geometry){
+                        threeObj.geometry.computeBoundingBox();
+                        ControllersCollection.threeObjects.push(threeObj);
+                        scene.add( threeObj );
+                        threeObj.geometry.computeBoundingSphere()
+                        threeObj.material = buildingNotSelectedMaterial;
+
+
+
+                        let center = threeObj.geometry.boundingSphere.center;
+                        let r = threeObj.geometry.boundingSphere.radius;
+                        
+
+                        /*let diag = new THREE.Vector3();
+                        camera.getWorldDirection (diag);
+                        diag.multiplyScalar(2*r);
+                        let pos = center.clone().add(diag);*/
+
+
+                        let camTarget = controls.target;
+                        let camPos = camera.position;
+                        let camLookAtVect = new THREE.Vector3().copy(camTarget);
+                        camLookAtVect.sub(camPos).normalize().multiplyScalar(-2*r);
+
+                        let pos = center.clone().add(camLookAtVect);
+
+                        moveCam(pos, center);
+                    }
+                })
+            })
+            console.log('file loaded');
+
+            
+
+
+            /*let cityJSONbuilder = new CityJSONModelBuilder();
             cityJSONbuilder.build(cityJSON_object);
             let buildings = cityJSONbuilder.getBuildings();
-            console.log(buildings);
+            //console.log(buildings);
             let geometryBuilder = new GeometryBuilder();
             buildings.forEach(building=>{
-                geometryBuilder.build(building,3);//TO DO : Gérer le LOD
-                console.log(geometryBuilder);
-                let geometricalController = geometryBuilder.getScene(buildingNotSelectedMaterial);
-                geometricalController.buildDual(dualMaterial, pointsMaterial);
-                console.log(geometricalController);
-                controllers.addController(geometricalController, scene);
-                controllers.changeSelectedController(geometricalController.id, dualScene);
-            })
-            console.log("IMPORT SUCCEED");
+                try{
+                    console.log(building);
+                    geometryBuilder.build(building,3);//TO DO : Gérer le LOD
+                    console.log(geometryBuilder);
+                    let geometricalController = geometryBuilder.getScene(buildingNotSelectedMaterial);
+                    geometricalController.buildDual(dualMaterial, pointsMaterial);
+                    console.log(geometricalController);
+                    controllers.addController(geometricalController);
+                    controllers.changeSelectedController(geometricalController.id);
+                }
+                catch(error){
+                    console.error("Failed to import the building "+building.id+" because of "+error);
+                }
+            })*/
+            
             
         })
+        
+        
     }
+
+    //Mock Object import
+    const mockList = document.getElementById("mockSelect");
+    function importMockObject(){
+        const mockName = mockList.value;
+        if(mockName!=""){
+            loaders.MockLoader.loadObject(mock_builds[mockName], controllers);
+        }
+        moveCam(new THREE.Vector3(20,40,20),new THREE.Vector3(0,0,0))      
+    }
+
+    mockList.addEventListener("change", importMockObject);
+
+    
 
     //Embedding Selection
     const embeddingList = document.getElementById("embeddingSelect");
     function chooseEmbedding(){
         const embeddingName = embeddingList.value;
-        geometricalController.setEmbedding(embeddingName);
+        if(controllers.getSelectedController()){
+            controllers.getSelectedController().setEmbedding(embeddingName);
+        }
     }
 
     embeddingList.addEventListener("change", chooseEmbedding);
@@ -355,4 +389,19 @@ const w = window;
 
     }
     window.addEventListener( 'resize', onWindowResize );
+
+    function moveCam(newPos, newCenter){
+
+        controls.target.copy(newCenter);
+        controls.update();
+        camera.position.copy(newPos);
+
+
+        pLight1.position.set( newCenter.x+50*dist_sun, newCenter.y+50*dist_sun, newCenter.z+50*dist_sun );  
+    
+        pLight2.position.set( newCenter.x-50*dist_sun, newCenter.y+50*dist_sun, newCenter.z+50*dist_sun );
+    
+        pLight3.position.set( newCenter.x+50*dist_sun, newCenter.y-50*dist_sun, newCenter.z+50*dist_sun );
+    }
+    
 }

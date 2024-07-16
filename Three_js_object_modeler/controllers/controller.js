@@ -9,6 +9,7 @@ import { embeddings } from '../GeometricalEmbedding';
 import * as Certificats from "../certificats";
 import { isTopologicallyValid } from '../validityCheck';
 import * as THREE from 'three'
+import { pointsMaterial } from '../materials';
 
 class Controller{
     static epsilon = 0.000001;
@@ -111,9 +112,9 @@ class Controller{
         }
     }
 
-    buildDual(dualMaterial, dualPointMaterial){
+    buildDual(dualMaterial){
         this.dualBuilder.build(this);
-        this.dualController = this.dualBuilder.getScene(dualMaterial, dualPointMaterial);
+        this.dualController = this.dualBuilder.getScene(dualMaterial, pointsMaterial);
     }
 
 
@@ -288,7 +289,7 @@ class Controller{
         faces.forEach(f=>{
             plans.push([...this.faceData.planeEquation[f]]);
         });
-        let p = GeomUtils.computeIntersectionPoint2(...plans);
+        let p = GeomUtils.computeIntersectionPoint(...plans);
         /*let fEquation1 = this.faceData.planeEquation[faces[0]];
         let fEquation2 = this.faceData.planeEquation[faces[1]];
         let fEquation3 = this.faceData.planeEquation[faces[2]]; 
@@ -1103,6 +1104,50 @@ class Controller{
         })
     }
 
+    center(){
+        let [cx,cy,cz] = [0,0,0];
+        let n = this.pointData.count;
+        for(let i=0; i<n; i++){
+            let [x,y,z] = this.computeCoords(i);
+            //let [x,y,z] = this.pointData.coords[i];
+            console.log(i," : ",x,y,z, this.findAdjacentFaces(i).length);
+            cx+=x;
+            cy+=y;
+            cz+=z;
+        }
+        return [cx/n,cy/n,cz/n];
+    }
+
+    bbox(){
+        let [minx, miny, minz] = [0,0,0];
+        let [maxx, maxy, maxz] = [0,0,0];
+        let n = this.pointData.count;
+        for(let i=0; i<n; i++){
+            let [x,y,z] = this.computeCoords(i);
+            //let [x,y,z] = this.pointData.coords[i];
+            if(x<minx){
+                minx=x;
+            }
+            if(y<miny){
+                miny=y;
+            }
+            if(z<maxz){
+                minz=z;
+            }
+
+            if(x>maxx){
+                maxx=x;
+            }
+            if(y>maxy){
+                maxy=y;
+            }
+            if(z>maxz){
+                maxz=z;
+            }
+        }
+        return [[minx, miny, minz], [maxx, maxy, maxz]];
+    }
+
 
     copy(){
         
@@ -1158,7 +1203,6 @@ class DualController extends Controller{
         this.dualPoints.geometry.getAttribute('pIndex').needsUpdate = true;
 
     }
-
     
 }
 

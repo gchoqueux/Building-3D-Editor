@@ -34,7 +34,7 @@ class GeometryBuilder{
         this.GMLModel = building;
         this.LoD = LoD;
 
-        console.log("Build Begin");
+        //console.log("Build Begin");
 
         //First we fill the points data coords
         for(let i=minPointId; i<=maxPointId; i++){
@@ -46,7 +46,7 @@ class GeometryBuilder{
         let boundaryThematicSurfaces = building.getBoundary();
         
         
-        console.log("Surface loop");
+        //console.log("Surface loop");
         boundaryThematicSurfaces.forEach(thematicSurface=>{
             //let type = thematicSurface.getType();
             let boundarySurfaces = thematicSurface.getLoD(LoD).surfaces;
@@ -92,7 +92,7 @@ class GeometryBuilder{
         })
 
         //On remplit les données opposite edge des half edges
-        console.log("half_edge loop");
+        //console.log("half_edge loop");
         this.halfedge_data.oppIndex = new Array(this.halfedge_data.pIndex.length);
 
         for(let i=0; i<this.halfedge_data.pIndex.length; i++){
@@ -110,7 +110,7 @@ class GeometryBuilder{
         }
 
         //Compute the edge data
-        console.log("Edge loop");
+        //console.log("Edge loop");
         this.halfedge_data.eIndex = new Array(this.halfedge_data.pIndex.length).fill(-1);
         for(let i=0; i<this.halfedge_data.pIndex.length; i++){
             if(this.halfedge_data.eIndex[i]==-1){
@@ -125,7 +125,7 @@ class GeometryBuilder{
         }
 
         //computes the number of faces adjacent to the points
-        console.log("Arrity loop");
+        //console.log("Arrity loop");
         for(let i=0; i<this.point_data.nbAdjacentFaces.length; i++){
             let he_0 = this.point_data.heIndex[i][0];
             let he = he_0;
@@ -149,7 +149,7 @@ class GeometryBuilder{
             this.point_data.nbAdjacentFaces[i]=faces.length;
         }
 
-        console.log("face arrity computed");
+        //console.log("face arrity computed");
 
         
 

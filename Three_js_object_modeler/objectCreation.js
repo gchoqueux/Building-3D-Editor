@@ -1,6 +1,6 @@
 //Pyramide tronquée
-/*
-let house1 = {
+
+let t_p = {
     'points':[
         [-5, 5 ,  5],//0
         [ 5, 5 ,  5],//1
@@ -21,14 +21,14 @@ let house1 = {
     ]
 }
 
-let building1 = {
+let truncated_pyramide = {
     'buildingParts':[
-        house1
+        t_p
     ]
 }
-*/
+
 //Maisons
-/*
+
 let house1 = {
     'points':[
         [-5, 5 ,  5],
@@ -83,7 +83,7 @@ let house2 = {
     ]
 }
 
-let building1 = {
+let houses_1and2 = {
     'buildingParts':[
         house1,
         house2
@@ -158,17 +158,17 @@ let house4 = {
     ]
 }
 
-let building2 = {
+let houses_3and4 = {
     'buildingParts':[
         house3,
         house4
     ]
 }
 
-let buildingsJs = [building1, building2];*/
+let houses = [houses_1and2, houses_3and4];
 
 //Toit
-/*
+
 let roof1 = {
     'points':[
         [-5, 5 ,  5],
@@ -187,12 +187,12 @@ let roof1 = {
     ]
 }
 
-let building1 = {
+let roof = {
     'buildingParts':[
         roof1
     ]
 }
-*/
+
 //Batiment en L
 
 let house = {
@@ -229,7 +229,7 @@ let house = {
     ]
 }
 
-let building1 = {
+let house_L_shape = {
     'buildingParts':[
         house
     ]
@@ -237,8 +237,8 @@ let building1 = {
 
 
 //Pyramide
-/*
-let pyramid = {
+
+let p = {
     'points':[
         [-5, 5 ,  5],
         [ 5, 5 ,  5],
@@ -255,13 +255,17 @@ let pyramid = {
     ]
 }
 
-let building1 = {
+let pyramid = {
     'buildingParts':[
-        pyramid
+        p
     ]
 }
-*/
 
 
-let buildingsJs = [building1];
-export {buildingsJs}
+
+let mock_builds = {"Pyramid":[pyramid], 
+                  "TPyramid":[truncated_pyramide],
+                  "LHouse":[house_L_shape],
+                  "Houses":houses,
+                  "Roof":[roof]};
+export {mock_builds}

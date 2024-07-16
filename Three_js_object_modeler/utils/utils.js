@@ -34,13 +34,6 @@ function computeDirection(controls){
     return new THREE.Vector3(Math.cos(rx)*Math.sin(ry), Math.sin(rx), Math.cos(rx)*Math.cos(ry));
 }
 
-function test(){
-    var v1 = new THREE.Vector3();
-    console.log(v1);
-    var v2 = v1.addScalar(1);
-    console.log(v1);
-}
-
 function meanVectors(vectorArray){
     if(vectorArray.length == 0){
         return -1;
@@ -405,6 +398,65 @@ function findElement(a, e){
     return index;
 }
 
+function computeCenter_CityJson(cityJsonData){
+    let center = new THREE.Vector3();
+    
+    let coords = new THREE.BufferGeometry();
+
+    let vertices = new Float32Array( cityJsonData.vertices.map( v => [ v[ 0 ], v[ 1 ], v[ 2 ] ] ).flat() ); 
+
+    coords.setAttribute('position', new THREE.BufferAttribute( vertices, 3));
+
+    coords.computeBoundingBox();
+
+    coords.boundingBox.getCenter(center);
 
 
-export{ findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+    return [center.x, center.y, center.z];
+}
+
+function translateThreeObject(threeObj, vector){
+    let n = threeObj.geometry.attributes.position.count;
+    for(let i=0; i<n; i++){
+        let x = threeObj.geometry.attributes.position.getX(i);
+        let y = threeObj.geometry.attributes.position.getY(i);
+        let z = threeObj.geometry.attributes.position.getZ(i);
+
+        threeObj.geometry.attributes.position.setXYZ(i, x+vector[0], y+vector[1], z+vector[2]);
+
+    }
+    threeObj.geometry.attributes.position.needsUpdate = true;
+    
+}
+
+
+function translateCityJSONObject(cityJSON_object, vector){
+    let n = cityJSON_object.vertices.length;
+    for(let i=0; i<n; i++){
+        cityJSON_object.vertices[i][0]+=vector[0];
+        cityJSON_object.vertices[i][1]+=vector[1];
+        cityJSON_object.vertices[i][2]+=vector[2];
+
+    }
+    
+}
+
+function computeBBOX_CityJson(cityJsonData){
+
+    let coords = new THREE.BufferGeometry();
+
+    let vertices = new Float32Array( cityJsonData.vertices.map( v => [ v[ 0 ], v[ 1 ], v[ 2 ] ] ).flat() ); 
+
+    coords.setAttribute('position', new THREE.BufferAttribute( vertices, 3));
+
+    coords.computeBoundingBox();
+
+    console.log("BBOX : ",coords.boundingBox.min,coords.boundingBox.max);
+
+
+    return coords.boundingBox;
+}
+
+
+
+export{computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
