@@ -34,13 +34,6 @@ function computeDirection(controls){
     return new THREE.Vector3(Math.cos(rx)*Math.sin(ry), Math.sin(rx), Math.cos(rx)*Math.cos(ry));
 }
 
-function test(){
-    var v1 = new THREE.Vector3();
-    console.log(v1);
-    var v2 = v1.addScalar(1);
-    console.log(v1);
-}
-
 function meanVectors(vectorArray){
     if(vectorArray.length == 0){
         return -1;
@@ -85,6 +78,17 @@ function angle(v1, v2){
     return Math.acos(dotProduct(a,b));
 }
 
+function distance(p1,p2){
+    if(p1.length!=p2.length){
+        console.error("Bad length");
+    }
+    let d2 = 0;
+    for(let i=0; i<p1.length; i++){
+        d2+=(p1[i]-p2[i])*(p1[i]-p2[i]);
+    }
+    return(Math.sqrt(d2));
+}
+
 function distance_Tr_Tr(triangle1, triangle2){
 
     var a1,b1,c1,d1,a2,b2,c2,d2;
@@ -126,7 +130,9 @@ function distance_Pl_Pl(plan1, plan2){
     let n1 = normalize([a1,b1,c1]);
     let n2 = normalize([a2,b2,c2]);
 
-    return (angle(n1,n2));
+    let alpha = angle(n1,n2);
+
+    return (Math.min(alpha, Math.abs(alpha-Math.PI)));
     
 
 }
@@ -392,28 +398,65 @@ function findElement(a, e){
     return index;
 }
 
+function computeCenter_CityJson(cityJsonData){
+    let center = new THREE.Vector3();
+    
+    let coords = new THREE.BufferGeometry();
 
-/**
- * Returns a rank for the edge defined by the points of id i and j.
- * @param {int} i 
- * @param {int} j 
- * @returns int
- */
-function computeHalfEdgeRank(i, j){
-    return(j+(i+j)*(i+j+1)/2);
+    let vertices = new Float32Array( cityJsonData.vertices.map( v => [ v[ 0 ], v[ 1 ], v[ 2 ] ] ).flat() ); 
+
+    coords.setAttribute('position', new THREE.BufferAttribute( vertices, 3));
+
+    coords.computeBoundingBox();
+
+    coords.boundingBox.getCenter(center);
+
+
+    return [center.x, center.y, center.z];
 }
 
-/**
- * Use the bijection (i,j)->j+(i+j)*(i+j+1)/2 to give a rank 
- * to the half edge defined by the points of id i and j.
- * @param {int} i 
- * @param {int} j 
- * @returns int
- */
-function computeEdgeRank(i,j){
-    let M = Math.max(i,j);
-    let m = Math.min(i,j);
-    return this.computeHalfEdgeRank(M,m);
+function translateThreeObject(threeObj, vector){
+    let n = threeObj.geometry.attributes.position.count;
+    for(let i=0; i<n; i++){
+        let x = threeObj.geometry.attributes.position.getX(i);
+        let y = threeObj.geometry.attributes.position.getY(i);
+        let z = threeObj.geometry.attributes.position.getZ(i);
+
+        threeObj.geometry.attributes.position.setXYZ(i, x+vector[0], y+vector[1], z+vector[2]);
+
+    }
+    threeObj.geometry.attributes.position.needsUpdate = true;
+    
 }
 
-export{computeEdgeRank, computeHalfEdgeRank, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, test, meanVectors, crossProduct, normalize, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+
+function translateCityJSONObject(cityJSON_object, vector){
+    let n = cityJSON_object.vertices.length;
+    for(let i=0; i<n; i++){
+        cityJSON_object.vertices[i][0]+=vector[0];
+        cityJSON_object.vertices[i][1]+=vector[1];
+        cityJSON_object.vertices[i][2]+=vector[2];
+
+    }
+    
+}
+
+function computeBBOX_CityJson(cityJsonData){
+
+    let coords = new THREE.BufferGeometry();
+
+    let vertices = new Float32Array( cityJsonData.vertices.map( v => [ v[ 0 ], v[ 1 ], v[ 2 ] ] ).flat() ); 
+
+    coords.setAttribute('position', new THREE.BufferAttribute( vertices, 3));
+
+    coords.computeBoundingBox();
+
+    console.log("BBOX : ",coords.boundingBox.min,coords.boundingBox.max);
+
+
+    return coords.boundingBox;
+}
+
+
+
+export{computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}

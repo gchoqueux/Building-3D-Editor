@@ -27,3 +27,27 @@ body {
     height: 40px;
 }
 
+.three_container{
+    display: flex;
+}
+
+.fileInputBox{
+    right:0px;
+    border: 1px solid rgba(120,120,120) ;
+    border-radius: 15 px;
+    padding: 3px;
+    background-color: rgb(189, 189, 189); 
+    display: flex;
+    flex-direction: column;
+}
+
+.linearToolBox{
+    position: absolute;
+    right:0px;
+    border: 5px solid rgba(120,120,120) ;
+    border-radius: 15 px;
+    padding: 3px;
+    background-color: rgb(189, 189, 189); 
+    display: flex;
+    flex-direction: row;
+}
