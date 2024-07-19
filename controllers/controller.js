@@ -9,7 +9,7 @@ import { embeddings } from '../GeometricalEmbedding';
 import * as Certificats from "../certificats";
 import { isTopologicallyValid } from '../validityCheck';
 import * as THREE from 'three'
-import { pointsMaterial } from '../materials';
+import { pointsMaterial } from '../materials/materials';
 
 class Controller{
     static epsilon = 0.000001;
@@ -35,9 +35,17 @@ class Controller{
             this.LoD = LoD;
             //On calcule la flippabilité des arrêtes
             if(!isDual){
+                for(let i=0; i<this.pointData.count; i++){
+                    this.pointData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(0, i);
+                }
+                for(let i=0; i<this.edgeData.count; i++){
+                    this.edgeData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(1, i);
+                }
                 for(let i=0; i<this.edgeData.count; i++){
                     this.edgeData.flipable[i] = this.isflipable(i);
                 }
+                this.updateEmbeddedPlans();
+
             }
             
             this.material = material;
@@ -60,6 +68,7 @@ class Controller{
             for(let i=0; i<this.edgeData.count; i++){
                 this.edgeData.flipable[i] = this.isflipable(i);
             }
+            this.updateEmbeddedPlans();
         }
         this.material = material;
     }
@@ -345,6 +354,74 @@ class Controller{
         
     }
 
+    updateEmbeddedPlans(){
+        for(let i=0; i<this.pointData.count; i++){
+            console.log()
+            if(isNaN(this.pointData.embeddedPlanEquation[i][0])){
+                this.pointData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(0,i);
+            }
+            let [x,y,z] = this.computeCoords(i);
+            let [a,b,c,d] = this.pointData.embeddedPlanEquation[i];
+            this.pointData.embeddedPlanEquation[i][3] = -a*x-b*y-c*z;
+        }
+
+        for(let i=0; i<this.edgeData.count; i++){
+            if(isNaN(this.edgeData.embeddedPlanEquation[i][0])){
+                this.edgeData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(1,i);
+            }
+            let h  = this.edgeData.heIndex[i];
+            let ho = this.halfEdgeData.opposite(h);
+
+            let p0 = this.halfEdgeData.vertex(h);
+            let p1 = this.halfEdgeData.vertex(ho);
+
+            let [x0,y0,z0] = this.computeCoords(p0);
+            let [x1,y1,z1] = this.computeCoords(p1);
+            let [a,b,c,d]  = this.edgeData.embeddedPlanEquation[i];
+            let d0 = -a*x0-b*y0-c*z0;
+            let d1 = -a*x1-b*y1-c*z1;
+            this.edgeData.embeddedPlanEquation[i][3] = (d0+d1)/2;
+        }
+
+    }
+
+    computeDefaultEmbeddedPlan(cellType, cell_id){
+        
+        if(cellType==0){
+            let faces = this.findAdjacentFaces(cell_id);
+
+            let planEquation = [0,0,0,0];
+            let n = faces.length;
+            for(let i=0; i<n; i++){
+                planEquation[0]+=this.faceData.planeEquation[faces[i]][0];
+                planEquation[1]+=this.faceData.planeEquation[faces[i]][1];
+                planEquation[2]+=this.faceData.planeEquation[faces[i]][2];
+                planEquation[3]+=this.faceData.planeEquation[faces[i]][3];
+            }
+            planEquation[0]/=n;
+            planEquation[1]/=n;
+            planEquation[2]/=n;
+            planEquation[3]/=n;
+            return(planEquation);
+        }
+        if(cellType==1){
+            let planEquation = [0,0,0,0];
+
+            let he0 = this.edgeData.heIndex[cell_id];
+            let he1 = this.halfEdgeData.opposite(he0);
+
+            let planEquation0 = this.faceData.planeEquation[this.halfEdgeData.face(he0)];
+            let planEquation1 = this.faceData.planeEquation[this.halfEdgeData.face(he1)];
+            
+            planEquation[0]=planEquation0[0]+planEquation1[0];
+            planEquation[1]=planEquation0[1]+planEquation1[1];
+            planEquation[2]=planEquation0[2]+planEquation1[2];
+            planEquation[3]=planEquation0[3]+planEquation1[3];
+            return(planEquation);
+        }
+
+    }
+
     findTValidityInterval(fIndex){
         let tmax=[];
         let tmin=[];
@@ -426,6 +503,8 @@ class Controller{
      * @param {*} edgeId 
      */
     degenerateFace(faceId){
+
+        let planEquation = [...this.faceData.planeEquation[faceId]];
         
         let h   = this.faceData.hExtIndex[faceId][0];
         let h_o = this.halfEdgeData.opposite(h);
@@ -462,9 +541,14 @@ class Controller{
         }
         this.deleteHalfEdge(h_n);
 
+        this.edgeData.embeddedPlanEquation[e1] = planEquation;
+
+
     }
 
     degenerateEdge(e_id){
+        let planEquation = [...this.edgeData.embeddedPlanEquation[e_id]];
+
         let h   = this.edgeData.heIndex[e_id];
         let h_o = this.halfEdgeData.opposite(h);
         let p1  = this.halfEdgeData.pIndex[h];
@@ -513,7 +597,10 @@ class Controller{
         }
         this.deleteHalfEdge(h_o);
         this.deletePoint(p2);
+
+        this.pointData.embeddedPlanEquation[p1] = planEquation;
     }
+
 
     /**
      * 
@@ -539,6 +626,7 @@ class Controller{
      * @param {float} shift 
      */
     splitPoint_changeGeomModel(p_id, face_id, strat){
+        let planEquation = [...this.pointData.embeddedPlanEquation[p_id]];
         let h = this.pointData.heIndex[p_id][0];
         while(this.halfEdgeData.fIndex[h]!=face_id){
             h = this.halfEdgeData.opposite(h);
@@ -563,12 +651,12 @@ class Controller{
             //Create the new edge and half edges
             let h1_id = this.halfEdgeData.count;
             let h2_id = this.halfEdgeData.count+1;
-            let e_id  = this.halfEdgeData.count;
+            let e_id  = this.edgeData.count;
             let p1_id = p_id;
             let p2_id = this.pointData.count;
 
-            this.edgeData.add(h1_id);
-            this.pointData.add(h2_id);
+            this.edgeData.add(h1_id, planEquation);
+            this.pointData.add(h2_id,[0,0,0,0]);
             this.halfEdgeData.add(p1_id,h2_id,h_po,f1_id,e_id)//add h1
             this.halfEdgeData.add(p2_id,h1_id,h_on,f2_id,e_id)//add h2
 
@@ -583,6 +671,9 @@ class Controller{
                 this.pointData.heIndex[p1_id] = [h1_id];
             }
 
+            this.pointData.embeddedPlanEquation[p1_id] = this.computeDefaultEmbeddedPlan(0,p1_id);
+            this.pointData.embeddedPlanEquation[p2_id] = this.computeDefaultEmbeddedPlan(0,p2_id);
+
 
             //Update of the graphical data of p2
             this.pointData.coords[p2_id] = this.computeCoords(p2_id);
@@ -596,8 +687,8 @@ class Controller{
             let p1_id = p_id;
             let p2_id = this.pointData.count;
 
-            this.edgeData.add(h1_id);
-            this.pointData.add(h2_id);
+            this.edgeData.add(h1_id, planEquation);
+            this.pointData.add(h2_id,[0,0,0,0]);
             this.halfEdgeData.add(p1_id,h2_id,h,face_id,e_id)//add h1
             this.halfEdgeData.add(p2_id,h1_id,h_onon,f3_id,e_id)//add h2
 
@@ -611,6 +702,9 @@ class Controller{
              if(this.pointData.heIndex[p1_id][0]==h || this.pointData.heIndex[p1_id][0]==h_on){
                 this.pointData.heIndex[p1_id] = [h1_id];
             }
+
+            this.pointData.embeddedPlanEquation[p1_id] = this.computeDefaultEmbeddedPlan(0,p1_id);
+            this.pointData.embeddedPlanEquation[p2_id] = this.computeDefaultEmbeddedPlan(0,p2_id);
 
 
             //Update of the graphical data of p2
@@ -778,6 +872,269 @@ class Controller{
             return acceptable_strat[0];
         }
     }
+
+
+    splitCellIntoFace(cellId, cellType){
+        if(cellType==0){
+            let pointId = cellId;
+            let planEquation = this.pointData.embeddedPlanEquation[pointId];
+
+            let h = this.pointData.heIndex[pointId];
+
+            //Creation of the n-1 other points
+            let pointsIds = [pointId];
+            let he = this.halfEdgeData.opposite(h);
+            he = this.halfEdgeData.next(he);
+            do{
+                pointsIds.push(this.pointData.count);
+                this.halfEdgeData.pIndex[he] = this.pointData.count;
+                this.pointData.add(he, [NaN,NaN,NaN,NaN]);
+                he = this.halfEdgeData.opposite(he);
+                he = this.halfEdgeData.next(he);
+            }while(he!=h)
+
+            //Création of the 2n new halfEdges, the n new edges, 
+            //and update of the others, plus the point's halfEdge pointers
+            let halfEdges = [];
+            he = h;
+            let i=0;
+            let newFace_id = this.faceData.count;
+            let n_he = this.halfEdgeData.count;
+            let n    = pointsIds.length;
+            let n_e  = this.edgeData.count;
+            do{
+                halfEdges.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
+                let he_o = this.halfEdgeData.opposite(he);
+                let he_on = this.halfEdgeData.next(he_o);
+                //f_id of the external he
+                let f_id = this.halfEdgeData.fIndex[he_on];
+                //opposites id
+                let oppId1 = this.halfEdgeData.count-1;
+                if(i==0){
+                    oppId1 = this.halfEdgeData.count+(2*n-1)
+                }
+                let oppId2 = this.halfEdgeData.count+2;
+                if(i==n-1){
+                    oppId2 = this.halfEdgeData.count-(2*(n-1))
+                }
+                //next id
+                let nextId1 = this.halfEdgeData.count-2;
+                if(i==0){
+                    nextId1 = this.halfEdgeData.count+(2*(n-1));
+                }
+
+                let nextId2 = he_on;
+                /*console.log(this.halfEdgeData.count, "---->",oppId1);
+                console.log(this.halfEdgeData.count+1, "---->", oppId2);
+                */
+                //update
+                this.halfEdgeData.nextIndex[he_o] = this.halfEdgeData.count+1;
+                this.halfEdgeData.pIndex[he] = pointsIds[i];
+                this.pointData.heIndex[pointsIds[i]] = [this.halfEdgeData.count];
+
+                //creation
+                this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
+                this.halfEdgeData.add(pointsIds[i], oppId1, nextId1, newFace_id, n_e+i);
+                this.halfEdgeData.add(pointsIds[i], oppId2, nextId2, f_id, n_e+((i+1)%n));
+                
+                
+                
+                he = he_on;
+                i++;
+            }while(he!=h)
+
+            //Creation of the face
+            this.faceData.add([halfEdges[0]],[],planEquation);
+
+
+        }
+
+
+
+
+        if(cellType==1){
+            let edgeId = cellId;
+            let planEquation = this.edgeData.embeddedPlanEquation[edgeId];
+            let h  = this.edgeData.heIndex[edgeId];
+            let ho = this.halfEdgeData.opposite(h);
+
+            let p0 = this.halfEdgeData.vertex(h);
+            let p1 = this.halfEdgeData.vertex(ho);
+
+            //Creation of the new points
+
+            let pointsIds0 = [p0];
+            let he = this.halfEdgeData.opposite(h);
+            he = this.halfEdgeData.next(he);
+            let h_p = this.halfEdgeData.previous(h);
+            let h_po = this.halfEdgeData.opposite(h_p);
+            do{
+                pointsIds0.push(this.pointData.count);
+                this.halfEdgeData.pIndex[he] = this.pointData.count;
+                this.pointData.add(he, [NaN,NaN,NaN,NaN]);
+                he = this.halfEdgeData.opposite(he);
+                he = this.halfEdgeData.next(he);
+            }while(he!=h_po)
+
+            let pointsIds1 = [p1];
+            he = this.halfEdgeData.opposite(ho);
+            he = this.halfEdgeData.next(he);
+            let h_op = this.halfEdgeData.previous(ho);
+            let h_opo = this.halfEdgeData.opposite(h_op);
+            do{
+                pointsIds1.push(this.pointData.count);
+                this.halfEdgeData.pIndex[he] = this.pointData.count;
+                this.pointData.add(he, [NaN,NaN,NaN,NaN]);
+                he = this.halfEdgeData.opposite(he);
+                he = this.halfEdgeData.next(he);
+            }while(he!=h_opo)
+
+            //Création of the 2n new halfEdges, the n new edges, 
+            //and update of the others, plus the point's halfEdge pointers
+            //for each vertex of the edge
+
+            //for P0
+            let i=1;
+            he = this.halfEdgeData.next(ho);
+            let newFace_id = this.faceData.count;
+            let n_he = this.halfEdgeData.count;
+            let n0    = pointsIds0.length;
+            let n_e  = this.edgeData.count;
+
+
+            let halfEdges0 = [this.halfEdgeData.count, h];
+
+
+            this.halfEdgeData.add(p0, n_he+2*(n0-1) , n_he+2*n0-3, newFace_id, n_e);
+
+
+            
+            do{
+                halfEdges0.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
+                let he_o = this.halfEdgeData.opposite(he);
+                let he_on = this.halfEdgeData.next(he_o);
+                //f_id of the external he
+                let f_id = this.halfEdgeData.fIndex[he_on];
+                //opposites id
+                let oppId1 = this.halfEdgeData.count-1;
+                if(i==1){
+                    oppId1 = ho;
+                }
+                let oppId2 = this.halfEdgeData.count+2;
+                if(i==n0-1){
+                    oppId2 = this.halfEdgeData.count-(2*n0-3)
+                }
+                //next id
+                let nextId1 = this.halfEdgeData.count-2;
+                if(i==1){
+                    nextId1 = this.halfEdgeData.count+(2*(n0-1));
+                }
+
+                let nextId2 = he_on;
+
+                //update
+                this.halfEdgeData.nextIndex[he_o] = this.halfEdgeData.count+1;
+                this.halfEdgeData.pIndex[he] = pointsIds0[i];
+                this.pointData.heIndex[pointsIds0[i]] = [this.halfEdgeData.count];
+
+                //creation
+                this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
+                this.halfEdgeData.add(pointsIds0[i], oppId1, nextId1, newFace_id, n_e+i-1);
+                this.halfEdgeData.add(pointsIds0[i], oppId2, nextId2, f_id, n_e+((i)%(n0-1)));
+                
+                //console.log(i);
+                
+                he = he_on;
+                i++;
+            }while(he!=h_po)
+
+            console.log(this.halfEdgeData.count);
+
+
+            //For P1
+
+            he = this.halfEdgeData.next(h);
+            i=1;
+            n_he = this.halfEdgeData.count;
+            let n1    = pointsIds1.length;
+            n_e  = this.edgeData.count;
+
+
+            let halfEdges1 = [this.halfEdgeData.count, ho];
+
+            this.halfEdgeData.eIndex[ho] = this.halfEdgeData.eIndex[halfEdges0[2]];
+
+
+            this.halfEdgeData.add(p1, n_he+2*(n1-1) , n_he+2*n1-3, newFace_id, n_e);
+
+
+
+            
+            do{
+                halfEdges1.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
+                let he_o = this.halfEdgeData.opposite(he);
+                let he_on = this.halfEdgeData.next(he_o);
+                //f_id of the external he
+                let f_id = this.halfEdgeData.fIndex[he_on];
+                //opposites id
+                let oppId1 = this.halfEdgeData.count-1;
+                if(i==1){
+                    oppId1 = h;
+                }
+                let oppId2 = this.halfEdgeData.count+2;
+                if(i==n1-1){
+                    oppId2 = this.halfEdgeData.count-(2*n1-3)
+                }
+                //next id
+                let nextId1 = this.halfEdgeData.count-2;
+                if(i==1){
+                    nextId1 = halfEdges0[0];
+                }
+
+                let nextId2 = he_on;
+
+                //update
+                this.halfEdgeData.nextIndex[he_o] = this.halfEdgeData.count+1;
+                this.halfEdgeData.pIndex[he] = pointsIds1[i];
+                this.pointData.heIndex[pointsIds1[i]] = [this.halfEdgeData.count];
+
+                //creation
+                this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
+                let e_id1 = n_e+i-2;
+                if(i==1){
+                    e_id1 = edgeId;
+                }
+                else{
+                    this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
+                }
+                this.halfEdgeData.add(pointsIds1[i], oppId1, nextId1, newFace_id, e_id1);
+                this.halfEdgeData.add(pointsIds1[i], oppId2, nextId2, f_id, n_e+((i-1)%(n1-2)));
+                
+                
+                //console.log(i);
+                he = he_on;
+                i++;
+            }while(he!=h_opo)
+
+            //change h and ho opposites
+            this.halfEdgeData.oppIndex[h]  = halfEdges1[2];
+            this.halfEdgeData.oppIndex[ho] = halfEdges0[2];
+
+
+            //change p0, p1 halfEdge pointer
+            this.pointData.heIndex[p0]  = [h];
+            this.pointData.heIndex[p1]  = [ho];
+
+            //Creation of the face
+            this.faceData.add([halfEdges0[0]],[],planEquation);
+
+
+        }
+
+        this.updateEmbeddedPlans();
+
+    }
+
 
     findEdge(face1, face2){
         for(let i=0; i<this.edgeData.count; i++){
