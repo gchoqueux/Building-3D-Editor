@@ -1,5 +1,252 @@
 import * as THREE from 'three';
 
+
+
+
+
+
+let vShader_buildingDebug = `
+    varying vec3 vViewPosition;
+    attribute float fIndex;
+    attribute vec3 center;
+    varying float faceIndex;
+    varying vec3 vCenter;
+    varying vec3 vEdge;
+    varying vec3 debug_color;
+
+    attribute float pIndex;
+    uniform float maxPointId;
+    uniform float maxFaceId;
+
+    
+    vec3 computeColor(float i, float max_i){
+        float max_value = 16777215.; //value of 255*256^2+255*256+255, which is the value encrypting the white.
+        float new_i = max_value*i/max_i;
+        float b = floor(new_i/65536.);
+        float g = floor((new_i-65536.*b)/256.);
+        float r = new_i-65536.*b-256.*g;
+        return vec3(r/255.,g/255.,b/255.);
+    }
+
+
+    void main() {
+
+        faceIndex = fIndex+0.5;
+        vCenter = mod(center, 2.);;
+        vEdge = center;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        
+        //debug_color = computeColor(pIndex, maxPointId);
+        debug_color = computeColor(fIndex, maxFaceId);
+    }
+        `;
+
+let fShader_buildingDebug = `
+    //uniform vec3 diffuse;
+    uniform vec3 emissive;
+    uniform vec3 specular;
+    uniform float shininess;
+    uniform float opacity;
+    uniform float thickness;
+    uniform int selectedFaceId;
+    uniform bool wireframe;
+    varying float faceIndex;
+    varying vec3 vCenter;
+    varying vec3 vEdge;
+    varying vec3 debug_color;
+
+
+    void main() {
+
+        vec3 afwidth = fwidth( vCenter );
+        vec3 all3 = smoothstep( ( thickness - 1.0 ) * afwidth, thickness * afwidth, vCenter );
+        vec3 sel3 = all3 + vEdge;
+        
+        float all = 1.0 - min( min( all3.x, all3.y ), all3.z );
+        float sel = 1.0 - min( min( sel3.x, sel3.y ), sel3.z );
+
+        vec4 diffuseColor = vec4( debug_color, 1. );
+        /*if (int(faceIndex)==selectedFaceId){
+            diffuseColor = vec4( vec3(1.,1.,1.)-diffuseColor.xyz, diffuseColor.w);
+        }*/
+        gl_FragColor.rgb = diffuseColor.rgb;//*(gl_FrontFacing ? 1. : 0.5);
+        gl_FragColor.a = 1.;
+        if(wireframe){
+            gl_FragColor.a = mix(all, sel, 1.);
+        }
+        
+
+    }
+`;
+
+
+let buildingMaterialDebug = new THREE.ShaderMaterial({
+    uniforms: { 
+        'thickness': { value: 6 },
+        'selectedFaceId':{value: -1},
+        'wireframe':{value: false},
+        'maxPointId' : {value:0},
+        'maxFaceId' : {value:0}
+        },
+    vertexShader: vShader_buildingDebug,
+    fragmentShader: fShader_buildingDebug,
+    side: THREE.DoubleSide,
+    alphaToCoverage: true // only works when WebGLRenderer's "antialias" is set to "true"
+});
+
+buildingMaterialDebug.extensions.derivatives = true;
+
+
+
+
+
+        
+
+let vShader_pointMaterial = 
+    `#define FacePoint
+    uniform float size;
+    uniform float scale;
+    attribute float fIndex;
+    attribute float faceArrity;
+    varying float faceIndex;
+    varying float vFaceArrity;
+
+    varying vec3 pointColor;
+
+    attribute float pIndex;
+    uniform float maxPointId;
+    uniform int selectedFaceId;
+
+    #include <common>
+    #include <color_pars_vertex>
+    #include <fog_pars_vertex>
+    #include <morphtarget_pars_vertex>
+    #include <logdepthbuf_pars_vertex>
+    #include <clipping_planes_pars_vertex>
+
+    #ifdef USE_POINTS_UV
+
+        varying vec2 vUv;
+        uniform mat3 uvTransform;
+
+    #endif
+
+    vec3 computeColor(float i, float max_i){
+        float max_value = 16777215.; //value of 255*256^2+255*256+255, which is the value encrypting the white.
+        float new_i = max_value*i/max_i;
+        float b = floor(new_i/65536.);
+        float g = floor((new_i-65536.*b)/256.);
+        float r = new_i-65536.*b-256.*g;
+        return vec3(r/255.,g/255.,b/255.);
+    }
+
+    void main() {
+        faceIndex = fIndex+0.5;
+        vFaceArrity = faceArrity+0.5;
+        pointColor = computeColor(pIndex, maxPointId);
+
+        #ifdef USE_POINTS_UV
+
+            vUv = ( uvTransform * vec3( uv, 1 ) ).xy;
+
+        #endif
+
+        
+
+        #include <color_vertex>
+        #include <morphcolor_vertex>
+        #include <begin_vertex>
+        #include <morphtarget_vertex>
+        #include <project_vertex>
+
+        gl_PointSize = size;
+
+        if(int(pIndex)==selectedFaceId){
+            gl_PointSize*=2.;
+        }
+
+        #ifdef USE_SIZEATTENUATION
+
+            bool isPerspective = isPerspectiveMatrix( projectionMatrix );
+
+            if ( isPerspective ) gl_PointSize *= ( scale / - mvPosition.z );
+
+        #endif
+
+        #include <logdepthbuf_vertex>
+        #include <clipping_planes_vertex>
+        #include <worldpos_vertex>
+        #include <fog_vertex>
+
+    }`;
+
+// Use the original MeshPhongMaterial's fragmentShader.
+let fShader_pointMaterial = `
+    #define FacePoint
+    uniform vec3 diffuse;
+    uniform float opacity;
+    varying float faceIndex;
+    varying float vFaceArrity;
+    varying vec3 pointColor;
+    uniform int selectedFaceId;
+
+    #include <common>
+    #include <color_pars_fragment>
+    #include <map_particle_pars_fragment>
+    #include <alphatest_pars_fragment>
+    // #include <alphahash_pars_fragment>
+    #include <fog_pars_fragment>
+    #include <logdepthbuf_pars_fragment>
+    #include <clipping_planes_pars_fragment>
+
+    void main() {
+
+        #include <clipping_planes_fragment>
+
+        vec3 outgoingLight = vec3( 0.0 );
+        vec4 diffuseColor = vec4( diffuse, opacity );
+
+        gl_FragColor.rgb = pointColor;
+        gl_FragColor.a = 1.;
+
+        
+        
+    }
+`
+
+let pointsMaterial = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+        THREE.ShaderLib.points.uniforms,
+        {
+            maxPointId:{value: -1},
+            selectedFaceId:{value: -1}
+        }
+    ]),
+    vertexShader: vShader_pointMaterial,
+    fragmentShader: fShader_pointMaterial,
+    side: THREE.DoubleSide,
+    alphaToCoverage: true // only works when WebGLRenderer's "antialias" is set to "true"
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class BuildingMaterial extends THREE.MeshPhongMaterial{
     constructor(parameters){
         super();
@@ -7,11 +254,14 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         this.type = "BuildingMaterial";
 
         this.wireframe = false;
+        this.side = THREE.DoubleSide;
+
         
         this.uniforms = THREE.UniformsUtils.merge([
             THREE.ShaderLib.phong.uniforms,
             {
-                selectedFaceId:{value: -1}
+                selectedFaceId:{value: -1},
+                thickness:{value: 0.1}
             }
         ]) 
         
@@ -20,7 +270,11 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         `#define BUILDING
         varying vec3 vViewPosition;
         attribute float fIndex;
+        attribute vec3 center;
         varying float faceIndex;
+        varying vec3 vCenter;
+        varying vec3 vEdge;
+
         #include <common>
         #include <uv_pars_vertex>
         #include <displacementmap_pars_vertex>
@@ -52,6 +306,8 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
             #include <clipping_planes_vertex>
             faceIndex = fIndex+0.5;
             vViewPosition = - mvPosition.xyz;
+            vCenter = vec3(center.xy, 1.-center.x-center.y );
+            vEdge = floor(mod(center.z*vec3(8.,4.,2.),2.));
             #include <worldpos_vertex>
             #include <envmap_vertex>
             #include <shadowmap_vertex>
@@ -66,6 +322,12 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         uniform vec3 specular;
         uniform float shininess;
         uniform float opacity;
+        uniform float thickness;
+        uniform int selectedFaceId;
+        varying float faceIndex;
+        varying vec3 vCenter;
+        varying vec3 vEdge;
+
         #include <common>
         #include <packing>
         #include <dithering_pars_fragment>
@@ -90,16 +352,26 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
         #include <specularmap_pars_fragment>
         #include <logdepthbuf_pars_fragment>
         #include <clipping_planes_pars_fragment>
-        varying float faceIndex;
-        uniform int selectedFaceId;
         void main() {
             #include <clipping_planes_fragment>
+
+            vec3 afwidth = fwidth( vCenter );
+            vec3 all3 = smoothstep( ( thickness - 1.0 ) * afwidth, thickness * afwidth, vCenter );
+            vec3 sel3 = all3 + vEdge;
+            
+            float all = 1.0 - min( min( all3.x, all3.y ), all3.z );
+            float sel = 1.0 - min( min( sel3.x, sel3.y ), sel3.z );
+
             vec4 diffuseColor = vec4( diffuse, opacity );
             if (int(faceIndex)==selectedFaceId){
                 diffuseColor = vec4( vec3(1.,1.,1.)-diffuseColor.xyz, diffuseColor.w);
             }
+            diffuseColor.a = mix(all, sel, 1.);
             ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
             vec3 totalEmissiveRadiance = emissive;
+
+
+            
             #include <logdepthbuf_fragment>
             #include <map_fragment>
             #include <color_fragment>
@@ -122,6 +394,8 @@ class BuildingMaterial extends THREE.MeshPhongMaterial{
             #include <fog_fragment>
             #include <premultiplied_alpha_fragment>
             #include <dithering_fragment>
+
+            //gl_FragColor = diffuseColor;
         }
         `
 
@@ -579,139 +853,39 @@ class DebugFlipMaterial extends THREE.LineDashedMaterial{
 }
 
 
-class DebugBuildingMaterial extends THREE.MeshBasicMaterial{
-    constructor(parameters){
-        super();
-
-        this.type = "DebugBuildingMaterial";
-
-        this.wireframe = false;
-
-        this.wireframeLinewidth = 3;
-        
-        this.uniforms = THREE.UniformsUtils.merge([
-            THREE.ShaderLib.basic.uniforms,
-            {
-                selectedFaceId:{value: -1},
-                maxPointId : {value:0},
-                maxFaceId : {value:0}
-            }
-        ]) 
-
-        this.vertexShader = 
-        `#define DebugBuildingMaterial
-        varying vec3 vViewPosition;
-        attribute float fIndex;
-        varying float faceIndex;
-        varying vec3 debug_color;
-
-        attribute float pIndex;
-        uniform float maxPointId;
-        uniform float maxFaceId;
-        #include <common>
-        //include <batching_pars_vertex>
-        #include <uv_pars_vertex>
-        #include <envmap_pars_vertex>
-        #include <color_pars_vertex>
-        #include <fog_pars_vertex>
-        #include <morphtarget_pars_vertex>
-        #include <skinning_pars_vertex>
-        #include <logdepthbuf_pars_vertex>
-        #include <clipping_planes_pars_vertex>
-
-
-        vec3 computeColor(float i, float max_i){
-            float max_value = 16777215.; //value of 255*256^2+255*256+255, which is the value encrypting the white.
-            float new_i = max_value*i/max_i;
-            float b = floor(new_i/65536.);
-            float g = floor((new_i-65536.*b)/256.);
-            float r = new_i-65536.*b-256.*g;
-            return vec3(r/255.,g/255.,b/255.);
-        }
-
-        void main() {
-            #include <uv_vertex>
-            #include <color_vertex>
-            #include <morphcolor_vertex>
-            //#include <batching_vertex>
-
-            #if defined ( USE_ENVMAP ) || defined ( USE_SKINNING )
-
-                #include <beginnormal_vertex>
-                #include <morphnormal_vertex>
-                #include <skinbase_vertex>
-                #include <skinnormal_vertex>
-                #include <defaultnormal_vertex>
-
-            #endif
-
-            #include <begin_vertex>
-            #include <morphtarget_vertex>
-            #include <skinning_vertex>
-            #include <project_vertex>
-            #include <logdepthbuf_vertex>
-            #include <clipping_planes_vertex>
-
-            #include <worldpos_vertex>
-            #include <envmap_vertex>
-            #include <fog_vertex>
-            faceIndex = fIndex+0.5;
-            vViewPosition = - mvPosition.xyz;
-
-            //debug_color = computeColor(pIndex, maxPointId);
-            debug_color = computeColor(fIndex, maxFaceId);
-        }`;
-
-		// Use the original MeshPhongMaterial's fragmentShader.
-		this.fragmentShader = `
-        #define DebugBuildingMaterial
-        uniform float opacity;
-
-        varying vec3 debug_color;
-        #ifndef FLAT_SHADED
-
-            varying vec3 vNormal;
-
-        #endif
-
-        #include <common>
-        #include <dithering_pars_fragment>
-        #include <color_pars_fragment>
-        #include <uv_pars_fragment>
-        #include <map_pars_fragment>
-        #include <alphamap_pars_fragment>
-        #include <alphatest_pars_fragment>
-        //#include <alphahash_pars_fragment>
-        #include <aomap_pars_fragment>
-        #include <lightmap_pars_fragment>
-        #include <envmap_common_pars_fragment>
-        #include <envmap_pars_fragment>
-        #include <fog_pars_fragment>
-        #include <specularmap_pars_fragment>
-        #include <logdepthbuf_pars_fragment>
-        #include <clipping_planes_pars_fragment>
-        varying float faceIndex;
-        uniform int selectedFaceId;
-
-
-        void main() {
-            #include <clipping_planes_fragment>
-            vec4 diffuseColor = vec4(debug_color, 1);
-            
-            gl_FragColor = diffuseColor;
-            
-        }
-        `
-
-        
-
-    this.setValues( parameters );
-    }
-}
 
 
 
-export {DebugBuildingMaterial, DebugFlipMaterial, FlipEdgeMaterial, BuildingMaterial, FacePointMaterial, SplitPointMaterial}
+
+//let buildingMaterial = new BuildingMaterial({color:0x00aa00, reflectivity:0.5, shininess : 5, specular : 0xff0000});
+
+let buildingMaterial = new THREE.ShaderMaterial({
+    uniforms: { 
+        'thickness': { value: 6 },
+        'selectedFaceId':{value: -1},
+        'wireframe':{value: false},
+        'maxPointId' : {value:0},
+        'maxFaceId' : {value:0}
+        },
+    vertexShader: vShader_buildingDebug,
+    fragmentShader: fShader_buildingDebug,
+    side: THREE.DoubleSide,
+    alphaToCoverage: true // only works when WebGLRenderer's "antialias" is set to "true"
+});
+
+buildingMaterial.extensions.derivatives = true;
+
+let buildingNotSelectedMaterial = new THREE.MeshPhongMaterial({color:0x888888, reflectivity:0.3, shininess : 10, specular : 0x888888});
+let buildingPointedMaterial = new THREE.MeshPhongMaterial({color:0xffff00, reflectivity:0.8, shininess : 10, specular : 0xffff00});
+let buildingSelectedMaterial = new THREE.MeshPhongMaterial({color:0x00ff00, reflectivity:0.8, shininess : 10, specular : 0x00ff00});
+
+buildingNotSelectedMaterial.side = THREE.DoubleSide;
+buildingPointedMaterial.side = THREE.DoubleSide;
+buildingSelectedMaterial.side = THREE.DoubleSide;
+pointsMaterial.uniforms.size.value = 20;
+let dualMaterial = buildingMaterialDebug.clone();
+
+export {dualMaterial, buildingPointedMaterial, buildingSelectedMaterial, buildingNotSelectedMaterial, pointsMaterial, buildingMaterial, buildingMaterialDebug, DebugFlipMaterial, FlipEdgeMaterial, FacePointMaterial, SplitPointMaterial}
 
 
 

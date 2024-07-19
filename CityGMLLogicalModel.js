@@ -84,6 +84,9 @@ class ClosureSurface extends AbstractThematicSurface{
     constructor(lod0MultiSurface, lod1MultiSurface, lod2MultiSurface, lod3MultiSurface){
         super(lod0MultiSurface, lod1MultiSurface, lod2MultiSurface, lod3MultiSurface);
     }
+    getType(){
+        return("Closure");
+    }
 }
 
 class AbstractConstruction{
@@ -109,8 +112,12 @@ class AbstractBuilding extends AbstractConstruction{
 
 
 class BuildingPart extends AbstractBuilding{
-    constructor(boundary){
+    constructor(boundary, minPointId, maxPointId,  minFaceId, maxFaceId){
         super(boundary);
+        this.minPointId = minPointId;
+        this.maxPointId = maxPointId;
+        this.minFaceId  = minFaceId;
+        this.maxFaceId  = maxFaceId;
     }
     getBoundary(){
         return this.surfaces;
@@ -121,6 +128,28 @@ class Building extends AbstractBuilding{
     constructor(buildingParts){
         super([]);
         this.buildingParts = buildingParts
+        this.updateMinMaxId();
+    }
+
+    updateMinMaxId(){
+        let minPointId = Infinity;
+        let maxPointId = 0;
+        let minFaceId = Infinity;
+        let maxFaceId = 0;
+        this.buildingParts.forEach(buildingPart=>{
+            let localMinPointId = buildingPart.minPointId;
+            let localMaxPointId = buildingPart.maxPointId;
+            let localMinFaceId = buildingPart.minFaceId;
+            let localMaxFaceId = buildingPart.maxFaceId;
+            minPointId = Math.min(minPointId, localMinPointId);
+            maxPointId = Math.max(maxPointId, localMaxPointId);
+            minFaceId = Math.min(minFaceId, localMinFaceId);
+            maxFaceId = Math.max(maxFaceId, localMaxFaceId);
+        })
+        this.minPointId = minPointId;
+        this.maxPointId = maxPointId;
+        this.minFaceId = minFaceId;
+        this.maxFaceId = maxFaceId;
     }
 
     addBuildingPart(buildingPart){

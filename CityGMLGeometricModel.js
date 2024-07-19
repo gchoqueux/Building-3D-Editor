@@ -28,7 +28,8 @@ class LinearRing{
         this.planeEquation=[0,0,0,0];
         //checkValidity calcul aussi l'equation de plan et la mets à jour
         if(!this.checkValidity()){
-            console.error("Linear ring not valid");
+            throw new Error("Linear ring not valid");
+            //console.error("Linear ring not valid");
         }
         
     }
@@ -51,13 +52,15 @@ class LinearRing{
         }
         else{
             this.positions.pop();
-            console.error("Linear ring not valid, impossible to add the point " + point.toString());
+            throw new Error("Linear ring not valid, impossible to add the point " + point.toString());
+            //console.error("Linear ring not valid, impossible to add the point " + point.toString());
         }
     }
 
     insertPoint(point, i){
         if(i>this.size && i<0){
-            console.error("Bad position argument, can not insert the point "+point.toString()+" in the LinearRing");
+            throw new Error("Bad position argument, can not insert the point "+point.toString()+" in the LinearRing");
+            //console.error("Bad position argument, can not insert the point "+point.toString()+" in the LinearRing");
         }
         else{
             this.positions.splice(i, 0, point);
@@ -66,14 +69,16 @@ class LinearRing{
             }
             else{
                 this.positions.pop();
-                console.error("Linear ring not valid, impossible to insert the point " + point.toString());
+                throw new Error("Linear ring not valid, impossible to insert the point " + point.toString());
+                //console.error("Linear ring not valid, impossible to insert the point " + point.toString());
             }
         }
     }
 
     getPoint(i){
         if(i>this.size && i<0){
-            console.error("Bad position argument, can not get the point "+i+" in the LinearRing");
+            throw new Error("Bad position argument, can not get the point "+i+" in the LinearRing");
+            //console.error("Bad position argument, can not get the point "+i+" in the LinearRing");
         }
         return(this.positions[i]);
     }
@@ -244,7 +249,8 @@ class Polygon extends Surface{
             this.triangulate();
         }
         else{
-            console.error("Polygon not valid");
+            throw new Error("Polygon not valid");
+            //console.error("Polygon not valid");
         }
         
     }
@@ -259,6 +265,11 @@ class Polygon extends Surface{
 
 
             if(Utils.distance_Pl_Pl(plan1, plan2)<=Polygon.epsilon){
+                if(plan1[0]*plan2[0]<=0 && plan1[1]*plan2[1]<=0 && plan1[2]*plan2[2]<=0 && plan1[3]*plan2[3]<=0){
+                    for(let i=0; i<=3; i++){
+                        plan2[i]*=-1;
+                    }
+                }
                 this.planeEquation = [(plan1[0]+plan2[0])/2, (plan1[1]+plan2[1])/2,(plan1[2]+plan2[2])/2,(plan1[3]+plan2[3])/2]
                 valid = true;
             }
@@ -365,12 +376,8 @@ class Polygon extends Surface{
                 this.triangulation[3*i+2] = mem;
             }
         }
-
-
-
-
-
     }
+
     find(id_point){
 
         let point = this.exterior.find(id_point);
