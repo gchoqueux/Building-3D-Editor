@@ -1,7 +1,7 @@
 import { CityJSONLoader, CityJSONParser, CityJSONWorkerParser } from "cityjson-threejs-loader";
 import { GeometryBuilder } from "../Builders/GeometryBuilders";
 import { CityJSONModelBuilder, MockModelBuilder } from "../Builders/ModelBuilder";
-import { buildingMaterial, buildingMaterialDebug, dualMaterial, pointsMaterial } from "../materials";
+import { buildingMaterial, buildingMaterialDebug, dualMaterial, pointsMaterial } from "../materials/materials";
 
 
 

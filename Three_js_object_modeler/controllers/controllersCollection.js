@@ -1,4 +1,4 @@
-import { buildingMaterial, buildingNotSelectedMaterial, buildingMaterialDebug } from "../materials";
+import { buildingMaterial, buildingNotSelectedMaterial, buildingMaterialDebug } from "../materials/materials";
 
 
 class ControllersCollection{
@@ -14,6 +14,10 @@ class ControllersCollection{
         this.dualPointsMaterial = dualPointsMaterial;
     }
 
+    /**
+     * 
+     * @returns {Controller}
+     */
     getSelectedController(){
         if(this.selectedController!=-1){
             return this.controllers[this.selectedController];

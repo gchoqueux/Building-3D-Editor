@@ -15,7 +15,6 @@ class SceneBuilder{
     build(geometricalController, material){
         let objId = geometricalController.id;
         this.computeTriangulation(geometricalController);
-        console.log(this.triangleData);
         this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], /*'objIndex':[],*/ 'faceBorder':[]}
         for(let i=0; i<this.triangleData.count; i++){
             let p1_id = this.triangleData.pIndex[3*i];

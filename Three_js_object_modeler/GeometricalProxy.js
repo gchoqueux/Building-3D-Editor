@@ -5,6 +5,8 @@ class PointData{
         this.heIndex = heIndex;
         this.count   = points3D.length;
 
+        this.embeddedPlanEquation = new Array(this.count);
+
         //grapphical embedding
         this.nbAdjacentFaces = nbAdjacentFaces;
         this.selectedPoint  = -1;
@@ -12,9 +14,10 @@ class PointData{
 
 
     }
-    add(he_id){
+    add(he_id, embeddedPlanEquation=[]){
         this.coords.push([0,0,0]);
         this.heIndex.push([he_id]);
+        this.embeddedPlanEquation.push(embeddedPlanEquation);
         this.nbAdjacentFaces.push(-1);
         this.count+=1;
     }
@@ -52,7 +55,11 @@ class PointData{
         this.heIndex.forEach(c=>{
             heIndex.push([...c]);
         })
-        return new PointData(coords, heIndex, [...this.nbAdjacentFaces]);
+        let copy = new PointData(coords, heIndex, [...this.nbAdjacentFaces]);
+        for (let i=0; i<this.count; i++){
+            copy.embeddedPlanEquation[i]=[...this.embeddedPlanEquation[i]]
+        }
+        return copy;
     }
 
 
@@ -151,6 +158,7 @@ class EdgeData{
         this.heIndex = heIndex;
         this.count = this.heIndex.length;
         this.selectedEdge = -1;
+        this.embeddedPlanEquation = new Array(this.count);
         this.flipable = new Array(this.count).fill(false);
     }
     changeSelectedEdge(newEdgeIndex, material){
@@ -158,8 +166,9 @@ class EdgeData{
         material.uniforms.selectedEdgeId.value = newEdgeIndex;
         material.needsUpdate = true;
     }
-    add(he_id){
+    add(he_id, embeddedPlanEquation=[]){
         this.heIndex.push(he_id);
+        this.embeddedPlanEquation.push(embeddedPlanEquation);
         this.flipable.push(false);
         this.count+=1;
     }
@@ -169,7 +178,11 @@ class EdgeData{
         this.count-=1;
     }
     copy(){
-        return new EdgeData([...this.heIndex]);
+        let copy = new EdgeData([...this.heIndex]);
+        for (let i=0; i<this.count; i++){
+            copy.embeddedPlanEquation[i]=[...this.embeddedPlanEquation[i]]
+        }
+        return copy;
     }
 }
 
