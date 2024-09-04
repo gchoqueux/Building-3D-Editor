@@ -10,9 +10,10 @@ import * as Certificats from "../certificats";
 import { isTopologicallyValid } from '../validityCheck';
 import * as THREE from 'three'
 import { pointsMaterial } from '../materials/materials';
+import { Vector2 } from 'three';
 
 class Controller{
-    static epsilon = 0.000001;
+    static epsilon = 0.1;
     static maxId = 0;
     constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy=false, isDual=false){
         this.id=Controller.maxId;
@@ -28,8 +29,10 @@ class Controller{
         
         if(!isCopy){
             this.stop = false;
+            this.reorientNormals();
 
             this.sceneBuilder = new SceneBuilder();
+
 
             //this.geometricalModel = geometricalModel;
             this.LoD = LoD;
@@ -47,6 +50,8 @@ class Controller{
                 this.updateEmbeddedPlans();
 
             }
+
+            
             
             this.material = material;
             this.sceneBuilder.build(this, this.material);
@@ -156,30 +161,33 @@ class Controller{
 
          
         if(splittable){
-            //If it's ok, we split all the points
+            
+            //If it's ok, we check that all the points can be spiltted
+            let able_to_shift = true;
+
             for(let i=0; i<this.pointData.count; i++){
-                //console.log(i);
                 let adjFaces = this.findAdjacentFaces(i);
-                //console.log(adjFaces);
                 if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
                     //console.log("before split");
                     //console.log("split strat ========>",this.splitPointOnMvt(i, faceId, delta));
-                    this.splitPointOnMvt(i, faceId, delta)
+                    let strat = this.chooseSplitPointStrat(i, faceId, delta);
+                    able_to_shift = (strat!=-1);
+                }
+                if(able_to_shift){
+                    break;
                 }
             }
-    
-            //console.log("before able to shift");
-            let faces = [];
-            let able_to_shift = true;
-            for(let i=0; i<this.pointData.count; i++){
-                faces.push(this.findAdjacentFaces(i));
-                if(faces[i].includes(faceId)&&faces[i].length>=4){
-                    able_to_shift=false;
-                }
-    
-            }
+
+
             if(able_to_shift && !this.stop){
-                //On commence par vérifier qu'on fait un décalage autorisé
+                //If it is ok, we split the points
+                for(let i=0; i<this.pointData.count; i++){
+                    let adjFaces = this.findAdjacentFaces(i);
+                    if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
+                        this.splitPointOnMvt(i, faceId, delta)
+                    }
+                }
+                //First we check that the required shift value is ok
                 //console.log("before tMin tMax");
                 let [tmin, tmax] = this.findTValidityInterval(faceId);
                 if(tmin>=-Controller.epsilon){
@@ -197,20 +205,17 @@ class Controller{
                     delta_final = tmax;
                     //delta_final = 0;
                 }
-                //console.log(delta_final);
-                //console.log(tmin, tmax, delta, delta_final);
-                //console.log("before plane modif");
                 let [a,b,c,d] = this.faceData.planeEquation[faceId];
                 this.faceData.planeEquation[faceId][3] -= delta_final*(a*a+b*b+c*c);
                 
                 //Si nécesaire, fusionner les points qui sont confondus
     
-                //if((delta_final!= delta) ||delta <Controller.epsilon){
-                //console.log("before degenerate");
-
+                console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
-                    //console.log(i);
+                    //console.log(i, this.edgeLength(i));
+                    console.log(i);
                     if(this.edgeLength(i)<Controller.epsilon){
+                        //console.log(i);
                         let degenerated_face = Certificats.faceDegenerated(this, i);
                         if(degenerated_face==-1){
                             console.log("edge degeneration");
@@ -221,7 +226,8 @@ class Controller{
                             faceDeleted = true;
                             this.degenerateEdge(i);
                             this.degenerateFace(degenerated_face);
-                            isTopologicallyValid(this);
+                            //isTopologicallyValid(this);
+                            i=-1;
                         }
                     }
                 }
@@ -235,6 +241,7 @@ class Controller{
     
             //console.log("end shift");
         }
+        isTopologicallyValid(this);
         return faceDeleted;
         
     }
@@ -279,8 +286,22 @@ class Controller{
         let p1_id = this.halfEdgeData.pIndex[h];
         let p2_id = this.halfEdgeData.pIndex[h_o];
 
-        let p1 = this.computeCoords(p1_id);
-        let p2 = this.computeCoords(p2_id);
+        let p1 = [];
+        let p2 = [];
+        
+        try{
+            p1 = this.computeCoords(p1_id);
+            p2 = this.computeCoords(p2_id);
+        }
+        catch(e){
+            console.log("####DEBUG INFO####");
+            console.log(p1_id,p2_id);
+            console.log(this.copy());
+            console.log(this.findAdjacentFaces(p1_id),this.findAdjacentFaces(p2_id));
+            console.log("##################");
+            console.error(e);
+        }
+        
 
         return Utils.distance(p1,p2);
     }
@@ -428,6 +449,7 @@ class Controller{
         //TODO : réécrire sans triangles 
         let paramPlanM = this.faceData.planeEquation[fIndex];
         //On vérifie que les triangles ne s'applatissent pas
+        //console.log(this.sceneBuilder.triangleData);
         for(let i=0; i<this.sceneBuilder.triangleData.fIndex.length; i++){
             if(this.sceneBuilder.triangleData.fIndex[i]==fIndex){
                 let p1=this.sceneBuilder.triangleData.pIndex[3*i  ];
@@ -469,7 +491,6 @@ class Controller{
                     else if(t_lim<0){
                         tmin.push(t_lim);
                     }
-                    
                     
                 })
                 
@@ -513,15 +534,21 @@ class Controller{
         let e1   = this.halfEdgeData.eIndex[h];
         let e2   = this.halfEdgeData.eIndex[h_n];
 
+        console.log(h, e1);
+        console.log(h_n, e2);
+
+
         let p1 = this.halfEdgeData.vertex(h);
         let p2 = this.halfEdgeData.vertex(h_n);
 
 
 
-        //change the half-edges pointers
+        //change the half-edges and edges pointers
         this.halfEdgeData.oppIndex[h_o] = h_no;
         this.halfEdgeData.oppIndex[h_no] = h_o;
         this.halfEdgeData.eIndex[h_no] = e1;
+
+        this.edgeData.heIndex[e1] = h_o;
 
         //change the vertices pointers
         
@@ -1006,10 +1033,11 @@ class Controller{
 
 
             this.halfEdgeData.add(p0, n_he+2*(n0-1) , n_he+2*n0-3, newFace_id, n_e);
-
+            this.edgeData.add(halfEdges0[0]);
 
             
             do{
+                console.log(this.edgeData.count);
                 halfEdges0.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
                 let he_o = this.halfEdgeData.opposite(he);
                 let he_on = this.halfEdgeData.next(he_o);
@@ -1039,16 +1067,14 @@ class Controller{
 
                 //creation
                 this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
-                this.halfEdgeData.add(pointsIds0[i], oppId1, nextId1, newFace_id, n_e+i-1);
-                this.halfEdgeData.add(pointsIds0[i], oppId2, nextId2, f_id, n_e+((i)%(n0-1)));
-                
-                //console.log(i);
+                this.halfEdgeData.add(pointsIds0[i], oppId1, nextId1, newFace_id, n_e+i);
+                this.halfEdgeData.add(pointsIds0[i], oppId2, nextId2, f_id, n_e+((i+1)%(n0)));
                 
                 he = he_on;
                 i++;
             }while(he!=h_po)
 
-            console.log(this.halfEdgeData.count);
+            //console.log(this.halfEdgeData.count);
 
 
             //For P1
@@ -1066,11 +1092,12 @@ class Controller{
 
 
             this.halfEdgeData.add(p1, n_he+2*(n1-1) , n_he+2*n1-3, newFace_id, n_e);
-
+            this.edgeData.add(halfEdges1[0]);
 
 
             
             do{
+                console.log(this.edgeData.count);
                 halfEdges1.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
                 let he_o = this.halfEdgeData.opposite(he);
                 let he_on = this.halfEdgeData.next(he_o);
@@ -1099,7 +1126,6 @@ class Controller{
                 this.pointData.heIndex[pointsIds1[i]] = [this.halfEdgeData.count];
 
                 //creation
-                this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
                 let e_id1 = n_e+i-2;
                 if(i==1){
                     e_id1 = edgeId;
@@ -1108,7 +1134,8 @@ class Controller{
                     this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
                 }
                 this.halfEdgeData.add(pointsIds1[i], oppId1, nextId1, newFace_id, e_id1);
-                this.halfEdgeData.add(pointsIds1[i], oppId2, nextId2, f_id, n_e+((i-1)%(n1-2)));
+                this.halfEdgeData.add(pointsIds1[i], oppId2, nextId2, f_id, n_e+((i)%(n1-1)));
+                //console.log(((i-1)%(n1-2)))
                 
                 
                 //console.log(i);
@@ -1120,6 +1147,8 @@ class Controller{
             this.halfEdgeData.oppIndex[h]  = halfEdges1[2];
             this.halfEdgeData.oppIndex[ho] = halfEdges0[2];
 
+            //change ho edge
+            this.halfEdgeData.eIndex[ho] = this.halfEdgeData.eIndex[this.halfEdgeData.opposite(ho)];
 
             //change p0, p1 halfEdge pointer
             this.pointData.heIndex[p0]  = [h];
@@ -1421,6 +1450,64 @@ class Controller{
             else if(this.halfEdgeData.fIndex[i]>f_id){
                 this.halfEdgeData.fIndex[i]-=1;
             }
+        }
+    }
+
+    reorientNormals(){
+        for(let i=0; i<this.faceData.count; i++){
+            let h_o = this.faceData.hExtIndex[i][0];
+            let h    = h_o;
+            let h_n  = this.halfEdgeData.next(h);
+            let h_nn = this.halfEdgeData.next(h_n);
+
+            let cross = new THREE.Vector3();
+            do{
+                let p0_id = this.halfEdgeData.vertex(h);
+                let p1_id = this.halfEdgeData.vertex(h_n);
+                let p2_id = this.halfEdgeData.vertex(h_nn);
+
+                let p0 = this.computeCoords(p0_id);
+                let p1 = this.computeCoords(p1_id);
+                let p2 = this.computeCoords(p2_id);
+
+                let v1 = new THREE.Vector3(p0[0]-p1[0],p0[1]-p1[1],p0[2]-p1[2]); //p0-p1
+                let v2 = new THREE.Vector3(p2[0]-p1[0],p2[1]-p1[1],p2[2]-p1[2]); //p2-p1
+
+                v1.normalize();
+                v2.normalize();
+
+                let a = v1.angleTo(v2);
+
+                if(a>0.01 && Math.abs(a-Math.PI)>0.01){
+                    cross.crossVectors(v1,v2);
+                    cross.normalize();
+                    break;
+                }
+
+                h    = h_n;
+                h_n  = h_nn;
+                h_nn = this.faceData.next(h_n);
+            }while(h!=h_o)
+
+            let [a,b,c,d] = this.faceData.planeEquation[i];
+            let normal = new THREE.Vector3(a,b,c);
+            if(normal.angleTo(cross)>=Math.PI/2){
+                if(a!=0){
+                    a=-a;
+                }
+                if(b!=0){
+                    b=-b;
+                }
+                if(c!=0){
+                    c=-c;
+                }
+                if(d!=0){
+                    d=-d;
+                }
+                let old = [...this.faceData.planeEquation[i]];
+                this.faceData.planeEquation[i] = [a,b,c,d];
+                //console.log("old/new", old, this.faceData.planeEquation[i]);
+            } 
         }
     }
 

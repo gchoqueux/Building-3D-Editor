@@ -39,7 +39,7 @@ class ControllersCollection{
             if(this.controllers[i].id==controllerId){
                 this.selectedController = i;
                 this.dualScene.add(this.controllers[i].dualController.vertexData);
-                this.dualScene.add(this.controllers[i].dualController.dualPoints)
+                this.dualScene.add(this.controllers[i].dualController.dualPoints);
                 
                 this.controllers[this.selectedController].vertexData.material = this.selectedMaterial;
                 //Pour la couleur des faces
@@ -65,6 +65,7 @@ class ControllersCollection{
     addController(controller){
         this.controllers.push(controller);
         this.scene.add(controller.vertexData);
+        //console.log(controller.vertexData);
     }
 
     removeController(controllerId){

@@ -150,7 +150,6 @@ class GeometryBuilder{
         }
 
         //console.log("face arrity computed");
-
         
 
         this.face_data_object     = new FaceData(this.face_data.planeEquation,this.face_data.hExtIndex, this.face_data.hIntIndices);
@@ -165,7 +164,9 @@ class GeometryBuilder{
      * @returns A Controller object corresponding to this scene.
      */
     getScene(material){
-        return (new Controller(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material));
+        let c = new Controller(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material);
+        //c.reorientNormals();
+        return (c);
     }
 
 }
