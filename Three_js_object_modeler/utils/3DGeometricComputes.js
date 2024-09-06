@@ -2,6 +2,7 @@ import matrix from "matrix-js";
 import * as Utils from './utils';
 import { normalize } from "three/src/math/MathUtils";
 import Earcut from "earcut";
+import { ExactNumber as N } from "exactnumber/dist/index.umd";
 
 
 function crossMatrix(v){
@@ -26,18 +27,21 @@ function findClosestPointToNLines(...lines){
 
     lines.forEach(line => {
         let [[x_o, y_o, z_o], [x,y,z]] = line;
-        let cm_v = matrix(crossMatrix([x,y,z]));
+        let cm_v = matrix(crossMatrix([x.toNumber(),y.toNumber(),z.toNumber()]));
         let W0_i = matrix(matrix(cm_v.trans()).prod(cm_v));
         W0 = matrix(W0.add(W0_i));
 
-        let Pi = matrix([[x_o],
-                         [y_o],
-                         [z_o]]);
+        let Pi = matrix([[x_o.toNumber()],
+                         [y_o.toNumber()],
+                         [z_o.toNumber()]]);
         let W1_term = matrix(W0_i.prod(Pi));
         W1 = matrix(W1.add(W1_term));
     });
-
-    return matrix(W0.inv()).prod(W1);
+    let closestPoint = matrix(W0.inv()).prod(W1);
+    closestPoint[0] = N(String(closestPoint[0]));
+    closestPoint[1] = N(String(closestPoint[1]));
+    closestPoint[2] = N(String(closestPoint[2]));
+    return closestPoint;
 }
 
 /**
@@ -48,11 +52,12 @@ function findClosestPointToNLines(...lines){
 function projectPointOnLine(point, line){
     let [x_p, y_p, z_p] = point;
     let [[x_o, y_o, z_o], v] = line;
-    v = Utils.normalize(v);
 
-    let OP = [x_p-x_o, y_p-y_o, z_p-z_o];
+    //v = Utils.normalize(v);
+
+    let OP = [x_p.sub(x_o), y_p.sub(y_o), z_p.sub(z_o)];
     let norme = Utils.dotProduct(OP,v);
-    return [x_o+norme*v[0],y_o+norme*v[1],z_o+norme*v[2]];
+    return [x_o.add(norme.mul(v[0])),y_o.add(norme.mul(v[1])),z_o.add(norme.mul(v[2]))];
 }
 
 /**
@@ -67,19 +72,19 @@ function computeIntersectionPoint(plan1,plan2,plan3){
     let [a2,b2,c2,d2] = plan2;
     let [a3,b3,c3,d3] = plan3;
 
-    let A = matrix([[a1,b1,c1],
-                    [a2,b2,c2],
-                    [a3,b3,c3]]);
+    let A = matrix([[a1.toNumber(),b1.toNumber(),c1.toNumber()],
+                    [a2.toNumber(),b2.toNumber(),c2.toNumber()],
+                    [a3.toNumber(),b3.toNumber(),c3.toNumber()]]);
 
 
     //console.log(A.det());
-    if(Math.abs((A.det()))<=0.01){
+    if(Math.abs((A.det()))==0){
         return [NaN,NaN,NaN];
     }
 
-    let D = matrix([[-d1],
-                    [-d2],
-                    [-d3]]);
+    let D = matrix([[d1.neg().toNumber()],
+                    [d2.neg().toNumber()],
+                    [d3.neg().toNumber()]]);
 
     let p = matrix(A.inv()).prod(D);
     p = matrix(p).trans()[0];
@@ -101,13 +106,13 @@ function computeShiftTValidity(planMobile, plan1, plan2, plan3){
     let [a_2,b_2,c_2,d_2] = plan2;
     let [a_3,b_3,c_3,d_3] = plan3;
 
-    let num = ((a_1*b_2-a_2*b_1)*c_3+(a_3*b_1-a_1*b_3)*c_2+(a_2*b_3-a_3*b_2)*c_1)*d_4+((a_2*b_1-a_1*b_2)*c_4+(a_1*b_4-a_4*b_1)*c_2+(a_4*b_2-a_2*b_4)*c_1)*d_3+((a_1*b_3-a_3*b_1)*c_4+(a_4*b_1-a_1*b_4)*c_3+(a_3*b_4-a_4*b_3)*c_1)*d_2+((a_3*b_2-a_2*b_3)*c_4+(a_2*b_4-a_4*b_2)*c_3+(a_4*b_3-a_3*b_4)*c_2)*d_1;
-    let den = ((a_1*b_2-a_2*b_1)*c_3+(a_3*b_1-a_1*b_3)*c_2+(a_2*b_3-a_3*b_2)*c_1);
-    let t=0;
+    let num = ((a_1.mul(b_2).sub(a_2.mul(b_1))).mul(c_3).add((a_3.mul(b_1).sub(a_1.mul(b_3))).mul(c_2)).add((a_2.mul(b_3).sub(a_3.mul(b_2))).mul(c_1)).mul(d_4)).add(((a_2.mul(b_1).sub(a_1.mul(b_2))).mul(c_4)).add((a_1.mul(b_4).sub(a_4.mul(b_1))).mul(c_2)).add((a_4.mul(b_2).sub(a_2.mul(b_4))).mul(c_1)).mul(d_3)).add(((a_1.mul(b_3).sub(a_3.mul(b_1))).mul(c_4)).add((a_4.mul(b_1).sub(a_1.mul(b_4))).mul(c_3)).add((a_3.mul(b_4).sub(a_4.mul(b_3))).mul(c_1)).mul(d_2)).add(((a_3.mul(b_2).sub(a_2.mul(b_3))).mul(c_4)).add((a_2.mul(b_4).sub(a_4.mul(b_2))).mul(c_3)).add((a_4.mul(b_3).sub(a_3.mul(b_4))).mul(c_2)).mul(d_1));
+    let den = ((a_1.mul(b_2).sub(a_2.mul(b_1))).mul(c_3).add((a_3.mul(b_1).sub(a_1.mul(b_3))).mul(c_2)).add((a_2.mul(b_3).sub(a_3.mul(b_2))).mul(c_1)));
+    let t=N(0);
 
     //console.log(num, den);
-    if (den == 0){
-        if(num>=0){
+    if (den.isZero()){
+        if(num.gt(N(0))){
             t=Infinity;
         }
         else{
@@ -115,7 +120,7 @@ function computeShiftTValidity(planMobile, plan1, plan2, plan3){
         }
     }
     else{
-        t = num/den;
+        t = num.div(den);
     }
      
     return t;
@@ -128,23 +133,23 @@ function computeShiftTValidity(planMobile, plan1, plan2, plan3){
 function computeToHorizontalMatrix(planeEquation){
     let [a,b,c,d] = planeEquation;
     let d2, d1, u,v;
-    if(b!=0){
-        [u,v] = [1, -a/b];
-        d2 = -d/b;
-        d1 = 0;
+    if(!b.isZero()){
+        [u,v] = [N(1), a.neg().div(b)];
+        d2 = d.neg().div(b);
+        d1 = N(0);
     }
     else{
-        [u,v] = [-b/a, 1];
-        d2 = 0;
-        d1 = -d/a;
+        [u,v] = [b.neg().div(a), N(1)];
+        d2 = N(0);
+        d1 = d.neg().div(a);
     }
     
 
     let Mr = matrix([
-        [u  , u*v,v  , 0],
-        [u*v, v*v,-u , 0],
-        [-v , u  ,0  , 0],
-        [0  , 0  ,0  , 1]
+        [u.toNumber()       , u.mul(v).toNumber(),v.toNumber()       , 0],
+        [u.mul(v).toNumber(), v.mul(v).toNumber(),u.neg().toNumber() , 0],
+        [v.neg().toNumber() , u.toNumber()       ,0                  , 0],
+        [0                  , 0                  ,0                  , 1]
     ])
     return Mr;
 }

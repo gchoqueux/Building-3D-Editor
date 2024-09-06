@@ -1,16 +1,18 @@
 import * as THREE from 'three';
 import matrix from 'matrix-js';
+import { ExactNumber as N } from 'exactnumber/dist/index.umd';
+import { pow, acos, abs, sqrt, PI } from 'exactnumber/dist/index.umd';
 
 /**
  * Return the norme of the vector v
  * @param {float[]} v 
  */
 function norme(v){
-    let s = 0;
+    let s = N(0);
     v.forEach(c=>{
-        s+=c*c;
+        s=s.add(c.mul(c));
     })
-    return Math.sqrt(s);
+    return sqrt(s,6);
 }
 
 function min(vec1, vec2){
@@ -57,25 +59,36 @@ function meanVectors(vectorArray){
 
 function crossProduct(v1,v2){
     var result = [0,0,0];
-    result[0] = v1[1]*v2[2]-v1[2]*v2[1];
-    result[1] = v1[2]*v2[0]-v1[0]*v2[2];
-    result[2] = v1[0]*v2[1]-v1[1]*v2[0];
+    let [a1,b1,c1] = v1;
+    let [a2,b2,c2] = v2;
+
+
+    result[0] = b1.mul(c2).sub(c1.mul(b2));
+    result[1] = c1.mul(a2).sub(a1.mul(c2));
+    result[2] = a1.mul(b2).sub(b1.mul(a2));
     return result;
 }
 
 function normalize(v){
-    const length= Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-    return [v[0]/length, v[1]/length, v[2]/length];
+    let [a,b,c] = v;
+    let length = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toString(),10);
+    return [a.div(length), b.div(length), c.div(length)];
 }
 
 function dotProduct(v1,v2){
-    return (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
+    return (v1[0].mul(v2[0]).add(v1[1].mul(v2[1])).add(v1[2].mul(v2[2])));
 }
 
 function angle(v1, v2){
     let a = normalize(v1);
     let b = normalize(v2);
-    return Math.acos(dotProduct(a,b));
+    /*let a_frac = [a[0].toFraction(),a[1].toFraction(),a[2].toFraction()];
+    let b_frac = [b[0].toFraction(),b[1].toFraction(),b[2].toFraction()];
+    let a_num = [a[0].toNumber(),a[1].toNumber(),a[2].toNumber()];
+    let b_num = [b[0].toNumber(),b[1].toNumber(),b[2].toNumber()];
+    console.log(a_num, b_num);*/
+    //console.log(dotProduct(a,b).toNumber());
+    return N(acos(dotProduct(a,b).clamp(N(0),N(1)),6));
 }
 
 function distance(p1,p2){
@@ -119,11 +132,8 @@ function distance_Tr_Pl(triangle1, plan){
 
 function distance_Pl_Pl(plan1, plan2){
     
-
-    var a1,b1,c1,d1,a2,b2,c2,d2;
-    
-    [a1,b1,c1,d1]=plan1;
-    [a2,b2,c2,d2]=plan2;
+    let [a1,b1,c1,d1]=plan1;
+    let [a2,b2,c2,d2]=plan2;
 
     //To Do : prendre en compte la distance spatiale si l'angle vaut 0
 
@@ -132,7 +142,7 @@ function distance_Pl_Pl(plan1, plan2){
 
     let alpha = angle(n1,n2);
 
-    return (Math.min(alpha, Math.abs(alpha-Math.PI)));
+    return (N.min(alpha, (alpha.sub(PI)).abs()));
     
 
 }
@@ -144,11 +154,10 @@ function distance_Point_Pl(point, plan){
     
     let [x,y,z]=point;
     let [a,b,c,d]=plan;
+    let num = a.mul(x).add(b.mul(y)).add(c.mul(z)).add(d).abs();
+    let den = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)),6);
 
-    let num = Math.abs(a*x+b*y+c*z+d);
-    let den = Math.sqrt(a*a+b*b+c*c);
-
-    return (num/den);
+    return (num.div(den));
     
 
 }

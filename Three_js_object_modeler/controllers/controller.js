@@ -11,6 +11,9 @@ import { isTopologicallyValid } from '../validityCheck';
 import * as THREE from 'three'
 import { pointsMaterial } from '../materials/materials';
 import { Vector2 } from 'three';
+import { ExactNumber as N } from 'exactnumber/dist/index.umd';
+
+import * as ExactMathUtils from '../utils/exactMathUtils';
 
 class Controller{
     static epsilon = 0.1;
@@ -95,6 +98,7 @@ class Controller{
         }
         //console.log("before update scene");
         this.updateScene();
+        //console.log("before get scene");
         this.vertexData = this.sceneBuilder.getScene();
         
         if(!(this.dualController == null)){
@@ -102,7 +106,7 @@ class Controller{
             this.dualBuilder.build(this);
             //console.log("before dual update");
             this.dualBuilder.updateScene(this.dualController.material, this.dualController);
-            //console.log("before dual onChnage");
+            //console.log("before dual onChange");
             this.dualController.onChange();
         }
         //console.log("end onChange");
@@ -135,8 +139,13 @@ class Controller{
 
     //Manipulation functions
     faceShift2(faceId, delta){
-        //console.log(faceId);
+        /*let p_eq = [...this.faceData.planeEquation[faceId]];
+        p_eq[0] = p_eq[0].toNumber();
+        p_eq[1] = p_eq[1].toNumber();
+        p_eq[2] = p_eq[2].toNumber();
+        p_eq[3] = p_eq[3].toNumber();*/
 
+        //console.log("------>",faceId, p_eq[3], delta.toNumber());
         let faceDeleted = false;
 
         //We verify that all points which must be splitted can be without any issue
@@ -190,35 +199,32 @@ class Controller{
                 //First we check that the required shift value is ok
                 //console.log("before tMin tMax");
                 let [tmin, tmax] = this.findTValidityInterval(faceId);
-                if(tmin>=-Controller.epsilon){
+                if(ExactMathUtils.gte(tmin,-Controller.epsilon)){
                     tmin=0;
                 }
-                if(tmax<=Controller.epsilon){
+                if(ExactMathUtils.lte(tmax,Controller.epsilon)){
                     tmax=0;
                 }
                 let delta_final = delta;
-                if(delta<=0 && delta<=tmin){
+                if(ExactMathUtils.lte(delta,0) && ExactMathUtils.lte(delta,tmin)){
                     delta_final = tmin;
                     //delta_final = 0;
                 }
-                else if(delta>0 && delta>=tmax){
+                else if(ExactMathUtils.gt(delta,0) && ExactMathUtils.gte(delta,tmax)){
                     delta_final = tmax;
                     //delta_final = 0;
                 }
-                let [a,b,c,d] = this.faceData.planeEquation[faceId];
-                this.faceData.planeEquation[faceId][3] -= delta_final*(a*a+b*b+c*c);
-                
+                this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
                 //Si nécesaire, fusionner les points qui sont confondus
     
-                console.log("============================", this.edgeData.count);
+                //console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
                     //console.log(i, this.edgeLength(i));
-                    console.log(i);
+                    //console.log(i);
                     if(this.edgeLength(i)<Controller.epsilon){
                         //console.log(i);
                         let degenerated_face = Certificats.faceDegenerated(this, i);
                         if(degenerated_face==-1){
-                            console.log("edge degeneration");
                             this.degenerateEdge(i);
                             i=-1;
                         }
@@ -232,16 +238,15 @@ class Controller{
                     }
                 }
                 if(!faceDeleted){
-                    this.faceData.planeEquation[faceId][3] -= (delta-delta_final)*(a*a+b*b+c*c);
+                    this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub((delta.sub(delta_final)));
                 }
                 
                 
                //}
             }
     
-            //console.log("end shift");
         }
-        isTopologicallyValid(this);
+        //isTopologicallyValid(this);
         return faceDeleted;
         
     }
@@ -377,17 +382,16 @@ class Controller{
 
     updateEmbeddedPlans(){
         for(let i=0; i<this.pointData.count; i++){
-            console.log()
-            if(isNaN(this.pointData.embeddedPlanEquation[i][0])){
+            if(typeof(this.pointData.embeddedPlanEquation[i][0])=="number"){
                 this.pointData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(0,i);
             }
             let [x,y,z] = this.computeCoords(i);
             let [a,b,c,d] = this.pointData.embeddedPlanEquation[i];
-            this.pointData.embeddedPlanEquation[i][3] = -a*x-b*y-c*z;
+            this.pointData.embeddedPlanEquation[i][3] = a.neg().mul(N(String(x))).sub(b.mul(N(String(y)))).sub(c.mul(N(String(z))));
         }
 
         for(let i=0; i<this.edgeData.count; i++){
-            if(isNaN(this.edgeData.embeddedPlanEquation[i][0])){
+            if(typeof(this.edgeData.embeddedPlanEquation[i][0])=="number"){
                 this.edgeData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(1,i);
             }
             let h  = this.edgeData.heIndex[i];
@@ -399,9 +403,9 @@ class Controller{
             let [x0,y0,z0] = this.computeCoords(p0);
             let [x1,y1,z1] = this.computeCoords(p1);
             let [a,b,c,d]  = this.edgeData.embeddedPlanEquation[i];
-            let d0 = -a*x0-b*y0-c*z0;
-            let d1 = -a*x1-b*y1-c*z1;
-            this.edgeData.embeddedPlanEquation[i][3] = (d0+d1)/2;
+            let d0 = a.neg().mul(N(String(x0))).sub(b.mul(N(String(y0)))).sub(c.mul(N(String(z0))));
+            let d1 = a.neg().mul(N(String(x1))).sub(b.mul(N(String(y1)))).sub(c.mul(N(String(z1))));
+            this.edgeData.embeddedPlanEquation[i][3] = d0.add(d1).div(N(2));
         }
 
     }
@@ -411,22 +415,22 @@ class Controller{
         if(cellType==0){
             let faces = this.findAdjacentFaces(cell_id);
 
-            let planEquation = [0,0,0,0];
+            let planEquation = [N(0),N(0),N(0),N(0)];
             let n = faces.length;
             for(let i=0; i<n; i++){
-                planEquation[0]+=this.faceData.planeEquation[faces[i]][0];
-                planEquation[1]+=this.faceData.planeEquation[faces[i]][1];
-                planEquation[2]+=this.faceData.planeEquation[faces[i]][2];
-                planEquation[3]+=this.faceData.planeEquation[faces[i]][3];
+                planEquation[0]=planEquation[0].add(this.faceData.planeEquation[faces[i]][0]);
+                planEquation[1]=planEquation[1].add(this.faceData.planeEquation[faces[i]][1]);
+                planEquation[2]=planEquation[2].add(this.faceData.planeEquation[faces[i]][2]);
+                planEquation[3]=planEquation[3].add(this.faceData.planeEquation[faces[i]][3]);
             }
-            planEquation[0]/=n;
-            planEquation[1]/=n;
-            planEquation[2]/=n;
-            planEquation[3]/=n;
+            planEquation[0]=planEquation[0].div(N(n));
+            planEquation[1]=planEquation[1].div(N(n));
+            planEquation[2]=planEquation[2].div(N(n));
+            planEquation[3]=planEquation[3].div(N(n));
             return(planEquation);
         }
         if(cellType==1){
-            let planEquation = [0,0,0,0];
+            let planEquation = [N(0),N(0),N(0),N(0)];
 
             let he0 = this.edgeData.heIndex[cell_id];
             let he1 = this.halfEdgeData.opposite(he0);
@@ -434,10 +438,10 @@ class Controller{
             let planEquation0 = this.faceData.planeEquation[this.halfEdgeData.face(he0)];
             let planEquation1 = this.faceData.planeEquation[this.halfEdgeData.face(he1)];
             
-            planEquation[0]=planEquation0[0]+planEquation1[0];
-            planEquation[1]=planEquation0[1]+planEquation1[1];
-            planEquation[2]=planEquation0[2]+planEquation1[2];
-            planEquation[3]=planEquation0[3]+planEquation1[3];
+            planEquation[0]=planEquation0[0].add(planEquation1[0]);
+            planEquation[1]=planEquation0[1].add(planEquation1[1]);
+            planEquation[2]=planEquation0[2].add(planEquation1[2]);
+            planEquation[3]=planEquation0[3].add(planEquation1[3]);
             return(planEquation);
         }
 
@@ -484,11 +488,11 @@ class Controller{
                     let paramPlan2 = this.faceData.planeEquation[planes[1]];
                     let paramPlan3 = this.faceData.planeEquation[planes[2]];
                     let t_lim = GeomUtils.computeShiftTValidity(paramPlanM, paramPlan1, paramPlan2, paramPlan3);
-                    
-                    if(t_lim>0){
+                    //console.log(t_lim);
+                    if((typeof(t_lim)=="number"&&t_lim==Infinity) || (typeof(t_lim)!="number"&&t_lim.gt(N(0)))){
                         tmax.push(t_lim);
                     }
-                    else if(t_lim<0){
+                    else if((typeof(t_lim)=="number"&&t_lim==-Infinity) || (typeof(t_lim)=="number"&&t_lim.lt(N(0)))){
                         tmin.push(t_lim);
                     }
                     
@@ -504,18 +508,18 @@ class Controller{
             
             if(faces.indexOf(fIndex)==-1){
                 let [x,y,z] = this.computeCoords(i);
-                let t_lim = a*x+b*y+c*z+d;
-                if(t_lim>=0){
+                let t_lim = a.mul(N(String(x))).add(b.mul(N(String(y)))).add(c.mul(N(String(z)))).add(d);
+                if(t_lim.gte(N(0))){
                     tmax.push(t_lim);
                 }
-                else if(t_lim<=0){
+                else if(t_lim.lte(0)){
                     tmin.push(t_lim);
                 }
             }
         }
 
-        //console.log([Math.max(...tmin), Math.min(...tmax)]);
-        return ([Math.max(...tmin), Math.min(...tmax)]);
+
+        return ([ExactMathUtils.max(...tmin), ExactMathUtils.min(...tmax)]);
     }
 
     /**
@@ -760,7 +764,7 @@ class Controller{
         let acceptable_strat = []; 
         //strat 1
         let geom_copy = this.copy();
-        geom_copy.faceData.planeEquation[moving_face][3]-=t;
+        geom_copy.faceData.planeEquation[moving_face][3]=geom_copy.faceData.planeEquation[moving_face][3].sub(t);
         geom_copy.splitPoint_changeGeomModel(pt_id, moving_face, 1);
             //first face
         let he1 = he_mp_o;
@@ -807,10 +811,10 @@ class Controller{
         //strat 2
 
         let geom_copy2 = this.copy();
-        geom_copy2.faceData.planeEquation[moving_face][3]-=t;
+        geom_copy2.faceData.planeEquation[moving_face][3]=geom_copy2.faceData.planeEquation[moving_face][3].sub(t);
         geom_copy2.splitPoint_changeGeomModel(pt_id, moving_face, 2);
 
-            //first face
+        //first face
 
         he3 = he_moving_face;
         he4 = geom_copy2.halfEdgeData.next(he3);
@@ -1490,22 +1494,10 @@ class Controller{
             }while(h!=h_o)
 
             let [a,b,c,d] = this.faceData.planeEquation[i];
-            let normal = new THREE.Vector3(a,b,c);
+            let normal = new THREE.Vector3(a.toNumber(),b.toNumber(),c.toNumber());
             if(normal.angleTo(cross)>=Math.PI/2){
-                if(a!=0){
-                    a=-a;
-                }
-                if(b!=0){
-                    b=-b;
-                }
-                if(c!=0){
-                    c=-c;
-                }
-                if(d!=0){
-                    d=-d;
-                }
                 let old = [...this.faceData.planeEquation[i]];
-                this.faceData.planeEquation[i] = [a,b,c,d];
+                this.faceData.planeEquation[i] = [a.neg(),b.neg(),c.neg(),d.neg()];
                 //console.log("old/new", old, this.faceData.planeEquation[i]);
             } 
         }
@@ -1630,7 +1622,9 @@ class DualController extends Controller{
     }
 
     onChange(){
+        //console.log("begin dual onChange");
         super.onChange();
+        //console.log("before dual onChange sup");
 
         for (let i=0; i<this.vertexData.count; i++){
             let p_id = this.vertexData.pIndex.getX(i);

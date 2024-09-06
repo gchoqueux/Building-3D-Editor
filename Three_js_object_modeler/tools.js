@@ -8,6 +8,7 @@ import { CityJSONModelBuilder } from './Builders/ModelBuilder.js';
 import { GeometryBuilder } from './Builders/GeometryBuilders.js';
 import { shiftFaceEdgeMaterial, shiftFacePointMaterial } from './materials/shiftToolsMaterials.js';
 import { isTopologicallyValid } from './validityCheck.js';
+import { ExactNumber as N } from 'exactnumber/dist/index.umd.js';
 
 class ToolBar{
     constructor(camera, geometricalControllers, controls, scene, dualScene){
@@ -132,7 +133,7 @@ class ShiftTool extends Tool{
     constructor(camera, geometricalControllers, controls, scene){
         super();
         this.distThreshold = 0.1;
-        this.globalDelta = 0;
+        this.globalDelta = N(0);
         this.camera = camera;
         this.geometricalControllers = geometricalControllers;
         this.controls = controls;
@@ -219,7 +220,6 @@ class ShiftTool extends Tool{
                 let z = 1;
 
                 debugInfo["screen coords"] = [x,y,z];
-
                 //To Do passer en view proj 3*3
                 let m = new THREE.Vector3(x,y,z);
                 m.unproject(this.camera);
@@ -232,41 +232,47 @@ class ShiftTool extends Tool{
                 m.normalize();
                 debugInfo["picking line vector"] = [m.x, m.y, m.z];
 
-
                 let n = this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId].slice(0,3);
-                n = Utils.normalize(n);
+                //n = Utils.normalize(n);
 
                 debugInfo["normale"] = n;
                 
                 /*let cx = this.geometricalController.faceData.center[3*faceId];
                 let cy = this.geometricalController.faceData.center[3*faceId+1];
                 let cz = this.geometricalController.faceData.center[3*faceId+2];*/
-                let cx = this.intersectionPoint.x;
-                let cy = this.intersectionPoint.y;
-                let cz = this.intersectionPoint.z;
+                let cx = N(String(this.intersectionPoint.x));
+                let cy = N(String(this.intersectionPoint.y));
+                let cz = N(String(this.intersectionPoint.z));
                 if(recomputeOriginPoint){
-                    cx = this.geometricalController.faceData.center[3*faceId];
-                    cy = this.geometricalController.faceData.center[3*faceId+1];
-                    cz = this.geometricalController.faceData.center[3*faceId+2];
+                    cx = N(String(this.geometricalController.faceData.center[3*faceId]));
+                    cy = N(String(this.geometricalController.faceData.center[3*faceId+1]));
+                    cz = N(String(this.geometricalController.faceData.center[3*faceId+2]));
                 }
                 debugInfo["face center"] = [cx,cy,cz];
 
-                let pickingLine = [[this.camera.position.x,this.camera.position.y,this.camera.position.z],[m.x,m.y,m.z]];
+                let pickingLine = [[N(String(this.camera.position.x)),N(String(this.camera.position.y)),N(String(this.camera.position.z))],[N(String(m.x)),N(String(m.y)),N(String(m.z))]];
                 
-                let faceLine    = [[cx,cy,cz],[n[0],n[1],n[2]]];
-
+                let faceLine    = [[cx,cy,cz],n];
                 let closestPoint = GeomUtils.findClosestPointToNLines(pickingLine, faceLine);
+               
+
                 let projectedPoint = GeomUtils.projectPointOnLine(closestPoint, faceLine);
 
                 debugInfo["P*"] = closestPoint;
                 debugInfo["P* projete"] = projectedPoint;
 
 
-                let shiftVect = [projectedPoint[0]-cx,projectedPoint[1]-cy, projectedPoint[2]-cz];
+                let shiftVect = [projectedPoint[0].sub(cx),projectedPoint[1].sub(cy), projectedPoint[2].sub(cz)];
                 let orientation = Utils.dotProduct(shiftVect, n);
+                
                 let delta = Utils.norme(shiftVect);
-                if(orientation<0){
-                    delta*=-1;
+                let sv = [...shiftVect];
+                sv[0] = sv[0].toNumber();
+                sv[1] = sv[1].toNumber();
+                sv[2] = sv[2].toNumber();
+                //console.log(orientation.toNumber());
+                if(orientation.lt(N(0))){
+                    delta = delta.neg();
                 }
                 
 
@@ -278,12 +284,12 @@ class ShiftTool extends Tool{
                 
                 //console.log("before shift");
 
-                let faceDeleted = this.geometricalControllers.getSelectedController().faceShift2(faceId, delta-this.globalDelta);
+                let faceDeleted = this.geometricalControllers.getSelectedController().faceShift2(faceId, delta.sub(this.globalDelta));
                 //console.log("before onChange");
                 this.geometricalControllers.getSelectedController().onChange();
                 //this.lastPicked.copy(pickedPoint);
                 this.globalDelta = delta;
-
+                //console.log("shift done");
                 if(faceDeleted){
                     this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().material);
                     this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);

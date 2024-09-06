@@ -1,3 +1,5 @@
+import { ExactNumber as N } from "exactnumber/dist/index.umd";
+
 class GeometricalEmbedding{
     constructor(){
 
@@ -13,10 +15,10 @@ class TrivialEmbedding extends GeometricalEmbedding{
     }
     transform(faceId, geometricalController){
         let [a,b,c,d] = geometricalController.faceData.planeEquation[faceId];
-        if (d==0){
-            d=0.000001;
+        if (d.isZero()){
+            d=N('0.000001');
         }
-        return ([a/d, b/d, c/d]);
+        return ([a.div(d).toNumber(), b.div(d).toNumber(), c.div(d).toNumber()]);
     }
 }
 
@@ -26,13 +28,13 @@ class LinearEmbedding extends GeometricalEmbedding{
     }
     transform(faceId, geometricalController){
         let [a,b,c,d] = geometricalController.faceData.planeEquation[faceId];
-        if(d<0){
-            d*=-1;
-            a*=-1;
-            b*=-1;
-            c*=-1;
+        if(d.lt(N(0))){
+            d=d.neg();
+            a=a.neg();
+            b=b.neg();
+            c=c.neg();
         }
-        return ([a*(d+1), b*(d+1), c*(d+1)]);
+        return ([a.mul(d.add(N(1))).toNumber(), b.mul(d.add(N(1))), c.mul(d.add(N(1)))]);
     }
 }
 
@@ -42,8 +44,8 @@ class InverseEmbedding extends GeometricalEmbedding{
     }
     transform(faceId, geometricalController){
         let [a,b,c,d] = geometricalController.faceData.planeEquation[faceId];
-        let l = d*d/(a*a+b*b+c*c);
-        return ([a*l,b*l,c*l]);
+        let l = d.mul(d).div(a.mul(a).add(b.mul(b)).add(c.mul(c)));
+        return ([a.mul(l).toNumber(),b.mul(l).toNumber(),c.mul(l).toNumber()]);
     }
 }
 
