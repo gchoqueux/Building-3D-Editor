@@ -14,7 +14,7 @@ class PointData{
 
 
     }
-    add(he_id, embeddedPlanEquation=[]){
+    add(he_id, embeddedPlanEquation=[NaN, NaN, NaN, NaN]){
         this.coords.push([0,0,0]);
         this.heIndex.push([he_id]);
         this.embeddedPlanEquation.push(embeddedPlanEquation);

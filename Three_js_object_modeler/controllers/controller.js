@@ -137,7 +137,7 @@ class Controller{
     faceShift2(faceId, delta){
         //console.log(faceId);
 
-        let faceDeleted = false;
+        let faceDeleted = Infinity;
 
         //We verify that all points which must be splitted can be without any issue
         let splittable = true;
@@ -210,20 +210,20 @@ class Controller{
                 
                 //Si nécesaire, fusionner les points qui sont confondus
     
-                console.log("============================", this.edgeData.count);
+               // console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
                     //console.log(i, this.edgeLength(i));
-                    console.log(i);
+                    //console.log(i);
                     if(this.edgeLength(i)<Controller.epsilon){
                         //console.log(i);
                         let degenerated_face = Certificats.faceDegenerated(this, i);
                         if(degenerated_face==-1){
-                            console.log("edge degeneration");
+                            //console.log("edge degeneration");
                             this.degenerateEdge(i);
                             i=-1;
                         }
                         else{
-                            faceDeleted = true;
+                            faceDeleted = degenerated_face;
                             this.degenerateEdge(i);
                             this.degenerateFace(degenerated_face);
                             //isTopologicallyValid(this);
@@ -231,7 +231,8 @@ class Controller{
                         }
                     }
                 }
-                if(!faceDeleted){
+                if(faceDeleted==Infinity){
+                    //console.log("end shift", delta, delta_final);
                     this.faceData.planeEquation[faceId][3] -= (delta-delta_final)*(a*a+b*b+c*c);
                 }
                 
@@ -241,7 +242,7 @@ class Controller{
     
             //console.log("end shift");
         }
-        isTopologicallyValid(this);
+        //isTopologicallyValid(this);
         return faceDeleted;
         
     }
@@ -377,7 +378,6 @@ class Controller{
 
     updateEmbeddedPlans(){
         for(let i=0; i<this.pointData.count; i++){
-            console.log()
             if(isNaN(this.pointData.embeddedPlanEquation[i][0])){
                 this.pointData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(0,i);
             }
@@ -402,6 +402,9 @@ class Controller{
             let d0 = -a*x0-b*y0-c*z0;
             let d1 = -a*x1-b*y1-c*z1;
             this.edgeData.embeddedPlanEquation[i][3] = (d0+d1)/2;
+
+
+
         }
 
     }
@@ -412,17 +415,18 @@ class Controller{
             let faces = this.findAdjacentFaces(cell_id);
 
             let planEquation = [0,0,0,0];
-            let n = faces.length;
-            for(let i=0; i<n; i++){
+            for(let i=0; i<faces.length; i++){
                 planEquation[0]+=this.faceData.planeEquation[faces[i]][0];
                 planEquation[1]+=this.faceData.planeEquation[faces[i]][1];
                 planEquation[2]+=this.faceData.planeEquation[faces[i]][2];
                 planEquation[3]+=this.faceData.planeEquation[faces[i]][3];
             }
+            let n = Utils.norme(planEquation.slice(0,3));
             planEquation[0]/=n;
             planEquation[1]/=n;
             planEquation[2]/=n;
             planEquation[3]/=n;
+
             return(planEquation);
         }
         if(cellType==1){
@@ -438,6 +442,13 @@ class Controller{
             planEquation[1]=planEquation0[1]+planEquation1[1];
             planEquation[2]=planEquation0[2]+planEquation1[2];
             planEquation[3]=planEquation0[3]+planEquation1[3];
+
+            let n = Utils.norme(planEquation.slice(0,3));
+            planEquation[0]/=n;
+            planEquation[1]/=n;
+            planEquation[2]/=n;
+            planEquation[3]/=n;
+
             return(planEquation);
         }
 
@@ -534,9 +545,6 @@ class Controller{
         let e1   = this.halfEdgeData.eIndex[h];
         let e2   = this.halfEdgeData.eIndex[h_n];
 
-        console.log(h, e1);
-        console.log(h_n, e2);
-
 
         let p1 = this.halfEdgeData.vertex(h);
         let p2 = this.halfEdgeData.vertex(h_n);
@@ -567,6 +575,10 @@ class Controller{
             h_n-=1;
         }
         this.deleteHalfEdge(h_n);
+        
+        if(e1>e2){
+            e1-=1;
+        }
 
         this.edgeData.embeddedPlanEquation[e1] = planEquation;
 
@@ -905,6 +917,7 @@ class Controller{
         if(cellType==0){
             let pointId = cellId;
             let planEquation = this.pointData.embeddedPlanEquation[pointId];
+            console.log("pe : ",planEquation);
 
             let h = this.pointData.heIndex[pointId];
 
@@ -1037,7 +1050,6 @@ class Controller{
 
             
             do{
-                console.log(this.edgeData.count);
                 halfEdges0.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
                 let he_o = this.halfEdgeData.opposite(he);
                 let he_on = this.halfEdgeData.next(he_o);
@@ -1097,7 +1109,6 @@ class Controller{
 
             
             do{
-                console.log(this.edgeData.count);
                 halfEdges1.push(this.halfEdgeData.count,this.halfEdgeData.count+1);
                 let he_o = this.halfEdgeData.opposite(he);
                 let he_on = this.halfEdgeData.next(he_o);

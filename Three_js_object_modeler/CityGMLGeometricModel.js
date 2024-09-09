@@ -277,6 +277,14 @@ class Polygon extends Surface{
                 valid = false;
             }
         })
+
+        if(valid){
+            let normal = this.planeEquation.slice(0,3);
+            let d = this.planeEquation[3];
+            let n = Utils.norme(normal);
+            normal = Utils.normalize(normal);
+            this.planeEquation = [...normal, d/n];
+        }
         
         return valid;
     }
