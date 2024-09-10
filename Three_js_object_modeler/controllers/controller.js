@@ -225,10 +225,24 @@ class Controller{
                         else{
                             faceDeleted = degenerated_face;
                             this.degenerateEdge(i);
+                            console.log("=*".repeat(8));
+                            console.log("=*".repeat(8));
+                            for(let i=0; i<this.faceData.count; i++){
+                                this.printFace(i);
+                            }
+                            console.log("=*".repeat(8));
+                            console.log("=*".repeat(8));
                             this.degenerateFace(degenerated_face);
                             //isTopologicallyValid(this);
                             i=-1;
                         }
+                        console.log("=*".repeat(8));
+                        console.log("=*".repeat(8));
+                        for(let i=0; i<this.faceData.count; i++){
+                            this.printFace(i);
+                        }
+                        console.log("=*".repeat(8));
+                        console.log("=*".repeat(8));
                     }
                 }
                 if(faceDeleted==Infinity){
@@ -320,7 +334,25 @@ class Controller{
         faces.forEach(f=>{
             plans.push([...this.faceData.planeEquation[f]]);
         });
-        let p = GeomUtils.computeIntersectionPoint(...plans);
+        let p=[0,0,0];
+        if(plans.length>=3) {
+            p = GeomUtils.computeIntersectionPoint(...plans);
+        }
+        
+        /*try{
+            p = GeomUtils.computeIntersectionPoint(...plans);
+        }
+        catch(e){
+            console.log("#### Debug computeCoords ####");
+            console.log("p_id : ",point_id);
+            console.log("faces : ",...faces);
+            console.log("plans : ",...plans);
+            isTopologicallyValid(this.copy());
+            console.log("####  ####");
+            //throw e;
+            p=[0,0,0];
+        }*/
+        
         /*let fEquation1 = this.faceData.planeEquation[faces[0]];
         let fEquation2 = this.faceData.planeEquation[faces[1]];
         let fEquation3 = this.faceData.planeEquation[faces[2]]; 
@@ -535,6 +567,7 @@ class Controller{
      * @param {*} edgeId 
      */
     degenerateFace(faceId){
+        console.log("degenerate face "+String(faceId));
 
         let planEquation = [...this.faceData.planeEquation[faceId]];
         
@@ -567,6 +600,8 @@ class Controller{
             this.pointData.heIndex[p2]=[h_o];
         }
 
+        this.edgeData.embeddedPlanEquation[e1] = planEquation;
+
         //Delete edges, half-edges and face
         this.deleteFace(faceId);
         this.deleteEdge(e2);
@@ -576,16 +611,14 @@ class Controller{
         }
         this.deleteHalfEdge(h_n);
         
-        if(e1>e2){
-            e1-=1;
-        }
-
-        this.edgeData.embeddedPlanEquation[e1] = planEquation;
 
 
     }
 
     degenerateEdge(e_id){
+        let h1_s   = this.edgeData.heIndex[e_id];
+        let h2_s = this.halfEdgeData.opposite(h1_s);
+        console.log("degenerate edge "+String(e_id)+", he : "+String(h1_s)+", "+String(h2_s));
         let planEquation = [...this.edgeData.embeddedPlanEquation[e_id]];
 
         let h   = this.edgeData.heIndex[e_id];
@@ -648,6 +681,7 @@ class Controller{
      * @param {float} shift 
      */
     splitPointOnMvt(p_id, face_id, t){
+        console.log("creation of an edge from point "+p_id);
         //console.log("before choose strat");
         let strat = this.chooseSplitPointStrat(p_id, face_id, t);
         if(strat!=-1){
@@ -914,6 +948,17 @@ class Controller{
 
 
     splitCellIntoFace(cellId, cellType){
+        let cell_name = "";
+        if(cellType==0){
+            cell_name = "point";
+        }
+        else{
+            cell_name = "edge";
+        }
+
+        console.log("creation of a face from "+cell_name+" "+cellId);
+
+
         if(cellType==0){
             let pointId = cellId;
             let planEquation = this.pointData.embeddedPlanEquation[pointId];
@@ -1607,6 +1652,98 @@ class Controller{
     copy(){
         
         return new Controller(this.faceData.copy(), this.pointData.copy(), this.halfEdgeData.copy(), this.edgeData.copy(), this.LoD, this.material, true);
+    }
+
+
+    //print fonctions
+
+    printFace(f_id){
+        console.log("===========FACE "+String(f_id)+"===========");
+        let h_o_ext = this.faceData.hExtIndex[f_id];
+        let he = h_o_ext;
+        let he_ext = [];
+        do{
+            he_ext.push(he);
+            he = this.halfEdgeData.next(he);
+        }while(he!=h_o_ext)
+
+        let s_ext = this.ringToString(he_ext);
+        
+        console.log(s_ext);
+
+
+        let s_int = [];
+        let h_o_int = this.faceData.hIntIndices[f_id];
+        h_o_int.forEach(h_o_i=>{
+            let he = h_o_i;
+            let he_int = [];
+            do{
+                he_int.push(he);
+                he = this.halfEdgeData.next(he);
+            }while(he!=h_o_i)
+            s_int.push(this.ringToString(he_int));
+        })
+
+        s_int.forEach(s_i=>{
+            console.log(s_i);
+        })
+
+        console.log("=============================");
+
+    }
+
+    printEdge(e_id){
+        
+    }
+
+    printVertex(p_id){
+        
+    }
+
+    ringToString(ring ){
+        let n = ring.length;
+        let height = Math.floor(n/2);
+        let diff = ring.length%2;
+        let v_middle = this.halfEdgeData.vertex(ring[height]);
+        let connector  = "-".repeat(3+diff*8)+">";
+        let space      = " ".repeat(2+4+diff*8);
+        
+        let res = " ".repeat(4+4*diff)+("    "+ring[n-1]).slice(-3)+" ".repeat(4+4*diff)+"\n";
+        //console.log(ring);
+        if(n<=3){
+            res+=" ".repeat(4)+connector+" ".repeat(4)+"\n";
+        }
+
+        for(let i=0; i<height; i++){
+            let l = "";
+            let p1 = " "+("    "+String(this.halfEdgeData.vertex(ring[n-1-i]))).slice(-3);
+            let p2 = ("    "+String(this.halfEdgeData.vertex(ring[i]))).slice(-3)+" ";
+            
+            if(i==height-1){
+                if(diff == 0){
+                    l+=String(p1)+"<---"+String(p2)+"\n";
+                    l+=" ".repeat(4)+("    "+ring[i]).slice(-3)+" ".repeat(4);
+                }
+                else{
+                    l+=String(p1)+"<---"+(" ".repeat(4)+v_middle).slice(-3)+"<---"+String(p2)+"\n";
+                    l+=" ".repeat(4)+(" ".repeat(4)+ring[i+1]).slice(-3)+" ".repeat(3)+("    "+ring[i]).slice(-3)+" ".repeat(4);
+                }
+            }
+            else{
+                if(i==0){
+                    l+=String(p1)+connector+String(p2);
+                }
+                else{
+                    l+=String(p1)+space+String(p2);
+                }
+                l+="\n";
+                l+=                 " ".repeat(3)+"^"+space+"|"+("    "+ring[i]).slice(-3)+"\n";
+                l+=("    "+ring[n-2-i]).slice(-3)+"|"+space+"v\n";
+            }
+            res+=l;
+            
+        }
+        return res;
     }
 
 
