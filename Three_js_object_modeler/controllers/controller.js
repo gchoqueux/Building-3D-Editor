@@ -135,7 +135,7 @@ class Controller{
 
     //Manipulation functions
     faceShift2(faceId, delta){
-        //console.log(faceId);
+        console.log("===MOVING FACE "+String(faceId)+"===");
 
         let faceDeleted = Infinity;
 
@@ -212,7 +212,8 @@ class Controller{
     
                // console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
-                    //console.log(i, this.edgeLength(i));
+                    let he_p = this.edgeData.heIndex[i];
+                    console.log("---------- edge "+String(i)+", he "+String(he_p)+", length :"+ String(this.edgeLength(i)));
                     //console.log(i);
                     if(this.edgeLength(i)<Controller.epsilon){
                         //console.log(i);
@@ -225,24 +226,17 @@ class Controller{
                         else{
                             faceDeleted = degenerated_face;
                             this.degenerateEdge(i);
-                            console.log("=*".repeat(8));
-                            console.log("=*".repeat(8));
-                            for(let i=0; i<this.faceData.count; i++){
-                                this.printFace(i);
-                            }
-                            console.log("=*".repeat(8));
-                            console.log("=*".repeat(8));
                             this.degenerateFace(degenerated_face);
                             //isTopologicallyValid(this);
                             i=-1;
                         }
-                        console.log("=*".repeat(8));
+                        /*console.log("=*".repeat(8));
                         console.log("=*".repeat(8));
                         for(let i=0; i<this.faceData.count; i++){
                             this.printFace(i);
                         }
                         console.log("=*".repeat(8));
-                        console.log("=*".repeat(8));
+                        console.log("=*".repeat(8));*/
                     }
                 }
                 if(faceDeleted==Infinity){
@@ -335,9 +329,11 @@ class Controller{
             plans.push([...this.faceData.planeEquation[f]]);
         });
         let p=[0,0,0];
+        //plans.push(this.pointData.embeddedPlanEquation[point_id]);
         if(plans.length>=3) {
             p = GeomUtils.computeIntersectionPoint(...plans);
         }
+        
         
         /*try{
             p = GeomUtils.computeIntersectionPoint(...plans);
