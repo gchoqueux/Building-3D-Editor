@@ -12,7 +12,7 @@ function norme(v){
     v.forEach(c=>{
         s=s.add(c.mul(c));
     })
-    return sqrt(s,6);
+    return N(Math.sqrt(s.toNumber()));
 }
 
 function min(vec1, vec2){
@@ -71,7 +71,7 @@ function crossProduct(v1,v2){
 
 function normalize(v){
     let [a,b,c] = v;
-    let length = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toString(),10);
+    let length = N(Math.sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toNumber()));
     return [a.div(length), b.div(length), c.div(length)];
 }
 
