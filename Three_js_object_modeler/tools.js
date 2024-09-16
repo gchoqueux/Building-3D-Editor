@@ -209,9 +209,8 @@ class ShiftTool extends Tool{
                 this.selectedEdge=-1;
                 this.updateMaterials();
             }
-            let faceId = this.selectedFace;
-            console.log(faceId);
-            if(faceId!=-1){
+            else if(faceId!=-1){
+                
                 let debugInfo = {};
                 let x = ( event.clientX / (window.innerWidth*this.screen_split_ratio) ) * 2 - 1;
                 let y = - ( event.clientY / window.innerHeight ) * 2 + 1;
@@ -230,8 +229,15 @@ class ShiftTool extends Tool{
                 m.normalize();
                 debugInfo["picking line vector"] = [m.x, m.y, m.z];
 
-                let n = this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId].slice(0,3);
-                //n = Utils.normalize(n);
+                let n;
+                try{
+                    n = this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId].slice(0,3);
+                }
+                catch(e){
+                    console.log(faceId,this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId]);
+                    throw e;
+                }
+                n = Utils.normalize(n);
 
                 debugInfo["normale"] = n;
                 
@@ -280,11 +286,17 @@ class ShiftTool extends Tool{
                 this.geometricalControllers.getSelectedController().onChange();
                 //this.lastPicked.copy(pickedPoint);
                 this.globalDelta = delta;
-                //console.log("shift done");
-                if(faceDeleted){
+                if(faceDeleted==faceId){
                     this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().material);
                     this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
                     this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.faceVerticesMaterial);
+                    this.selectedFace=-1;
+                }
+                else if(faceId>faceDeleted){
+                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().material);
+                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
+                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.faceVerticesMaterial);
+                    this.selectedFace-=1;
                 }
 
                 //this.geometricalController.updateScene();

@@ -131,14 +131,9 @@ class Controller{
 
     //Manipulation functions
     faceShift2(faceId, delta){
-        /*let p_eq = [...this.faceData.planeEquation[faceId]];
-        p_eq[0] = p_eq[0].toNumber();
-        p_eq[1] = p_eq[1].toNumber();
-        p_eq[2] = p_eq[2].toNumber();
-        p_eq[3] = p_eq[3].toNumber();*/
+        console.log("===MOVING FACE "+String(faceId)+"===");
 
-        //console.log("------>",faceId, p_eq[3], delta.toNumber());
-        let faceDeleted = false;
+        let faceDeleted = Infinity;
 
         //We verify that all points which must be splitted can be without any issue
         let splittable = true;
@@ -211,27 +206,36 @@ class Controller{
                 
                 //Si nécesaire, fusionner les points qui sont confondus
     
-                //if((delta_final!= delta) ||delta <Controller.epsilon){
-                //console.log("before degenerate");
-
+               // console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
+                    let he_p = this.edgeData.heIndex[i];
+                    console.log("---------- edge "+String(i)+", he "+String(he_p)+", length :"+ String(this.edgeLength(i)));
                     //console.log(i);
                     if(this.edgeLength(i)<Controller.epsilon){
                         let degenerated_face = Certificats.faceDegenerated(this, i);
                         if(degenerated_face==-1){
+                            //console.log("edge degeneration");
                             this.degenerateEdge(i);
                             i=-1;
                         }
                         else{
-                            faceDeleted = true;
+                            faceDeleted = degenerated_face;
                             this.degenerateEdge(i);
                             this.degenerateFace(degenerated_face);
                             isTopologicallyValid(this);
                         }
+                        /*console.log("=*".repeat(8));
+                        console.log("=*".repeat(8));
+                        for(let i=0; i<this.faceData.count; i++){
+                            this.printFace(i);
+                        }
+                        console.log("=*".repeat(8));
+                        console.log("=*".repeat(8));*/
                     }
                 }
-                if(!faceDeleted){
-                    this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub((delta.sub(delta_final)));
+                if(faceDeleted==Infinity){
+                    //console.log("end shift", delta, delta_final);
+                    this.faceData.planeEquation[faceId][3] -= (delta-delta_final)*(a*a+b*b+c*c);
                 }
                 
                 
@@ -239,6 +243,7 @@ class Controller{
             }
     
         }
+        //isTopologicallyValid(this);
         return faceDeleted;
         
     }
@@ -302,7 +307,27 @@ class Controller{
         faces.forEach(f=>{
             plans.push([...this.faceData.planeEquation[f]]);
         });
-        let p = GeomUtils.computeIntersectionPoint(...plans);
+        let p=[0,0,0];
+        //plans.push(this.pointData.embeddedPlanEquation[point_id]);
+        if(plans.length>=3) {
+            p = GeomUtils.computeIntersectionPoint(...plans);
+        }
+        
+        
+        /*try{
+            p = GeomUtils.computeIntersectionPoint(...plans);
+        }
+        catch(e){
+            console.log("#### Debug computeCoords ####");
+            console.log("p_id : ",point_id);
+            console.log("faces : ",...faces);
+            console.log("plans : ",...plans);
+            isTopologicallyValid(this.copy());
+            console.log("####  ####");
+            //throw e;
+            p=[0,0,0];
+        }*/
+        
         /*let fEquation1 = this.faceData.planeEquation[faces[0]];
         let fEquation2 = this.faceData.planeEquation[faces[1]];
         let fEquation3 = this.faceData.planeEquation[faces[2]]; 
@@ -360,7 +385,7 @@ class Controller{
 
     updateEmbeddedPlans(){
         for(let i=0; i<this.pointData.count; i++){
-            if(typeof(this.pointData.embeddedPlanEquation[i][0])=="number"){
+            if(isNaN(this.pointData.embeddedPlanEquation[i][0])){
                 this.pointData.embeddedPlanEquation[i] = this.computeDefaultEmbeddedPlan(0,i);
             }
             let [x,y,z] = this.computeCoords(i);
@@ -381,9 +406,12 @@ class Controller{
             let [x0,y0,z0] = this.computeCoords(p0);
             let [x1,y1,z1] = this.computeCoords(p1);
             let [a,b,c,d]  = this.edgeData.embeddedPlanEquation[i];
-            let d0 = a.neg().mul(N(String(x0))).sub(b.mul(N(String(y0)))).sub(c.mul(N(String(z0))));
-            let d1 = a.neg().mul(N(String(x1))).sub(b.mul(N(String(y1)))).sub(c.mul(N(String(z1))));
-            this.edgeData.embeddedPlanEquation[i][3] = d0.add(d1).div(N(2));
+            let d0 = -a*x0-b*y0-c*z0;
+            let d1 = -a*x1-b*y1-c*z1;
+            this.edgeData.embeddedPlanEquation[i][3] = (d0+d1)/2;
+
+
+
         }
 
     }
@@ -393,18 +421,19 @@ class Controller{
         if(cellType==0){
             let faces = this.findAdjacentFaces(cell_id);
 
-            let planEquation = [N(0),N(0),N(0),N(0)];
-            let n = faces.length;
-            for(let i=0; i<n; i++){
-                planEquation[0]=planEquation[0].add(this.faceData.planeEquation[faces[i]][0]);
-                planEquation[1]=planEquation[1].add(this.faceData.planeEquation[faces[i]][1]);
-                planEquation[2]=planEquation[2].add(this.faceData.planeEquation[faces[i]][2]);
-                planEquation[3]=planEquation[3].add(this.faceData.planeEquation[faces[i]][3]);
+            let planEquation = [0,0,0,0];
+            for(let i=0; i<faces.length; i++){
+                planEquation[0]+=this.faceData.planeEquation[faces[i]][0];
+                planEquation[1]+=this.faceData.planeEquation[faces[i]][1];
+                planEquation[2]+=this.faceData.planeEquation[faces[i]][2];
+                planEquation[3]+=this.faceData.planeEquation[faces[i]][3];
             }
-            planEquation[0]=planEquation[0].div(N(n));
-            planEquation[1]=planEquation[1].div(N(n));
-            planEquation[2]=planEquation[2].div(N(n));
-            planEquation[3]=planEquation[3].div(N(n));
+            let n = Utils.norme(planEquation.slice(0,3));
+            planEquation[0]/=n;
+            planEquation[1]/=n;
+            planEquation[2]/=n;
+            planEquation[3]/=n;
+
             return(planEquation);
         }
         if(cellType==1){
@@ -416,10 +445,17 @@ class Controller{
             let planEquation0 = this.faceData.planeEquation[this.halfEdgeData.face(he0)];
             let planEquation1 = this.faceData.planeEquation[this.halfEdgeData.face(he1)];
             
-            planEquation[0]=planEquation0[0].add(planEquation1[0]);
-            planEquation[1]=planEquation0[1].add(planEquation1[1]);
-            planEquation[2]=planEquation0[2].add(planEquation1[2]);
-            planEquation[3]=planEquation0[3].add(planEquation1[3]);
+            planEquation[0]=planEquation0[0]+planEquation1[0];
+            planEquation[1]=planEquation0[1]+planEquation1[1];
+            planEquation[2]=planEquation0[2]+planEquation1[2];
+            planEquation[3]=planEquation0[3]+planEquation1[3];
+
+            let n = Utils.norme(planEquation.slice(0,3));
+            planEquation[0]/=n;
+            planEquation[1]/=n;
+            planEquation[2]/=n;
+            planEquation[3]/=n;
+
             return(planEquation);
         }
 
@@ -506,6 +542,7 @@ class Controller{
      * @param {*} edgeId 
      */
     degenerateFace(faceId){
+        console.log("degenerate face "+String(faceId));
 
         let planEquation = [...this.faceData.planeEquation[faceId]];
         
@@ -535,6 +572,8 @@ class Controller{
             this.pointData.heIndex[p2]=[h_o];
         }
 
+        this.edgeData.embeddedPlanEquation[e1] = planEquation;
+
         //Delete edges, half-edges and face
         this.deleteFace(faceId);
         this.deleteEdge(e2);
@@ -543,13 +582,15 @@ class Controller{
             h_n-=1;
         }
         this.deleteHalfEdge(h_n);
-
-        this.edgeData.embeddedPlanEquation[e1] = planEquation;
+        
 
 
     }
 
     degenerateEdge(e_id){
+        let h1_s   = this.edgeData.heIndex[e_id];
+        let h2_s = this.halfEdgeData.opposite(h1_s);
+        console.log("degenerate edge "+String(e_id)+", he : "+String(h1_s)+", "+String(h2_s));
         let planEquation = [...this.edgeData.embeddedPlanEquation[e_id]];
 
         let h   = this.edgeData.heIndex[e_id];
@@ -612,6 +653,7 @@ class Controller{
      * @param {float} shift 
      */
     splitPointOnMvt(p_id, face_id, t){
+        console.log("creation of an edge from point "+p_id);
         //console.log("before choose strat");
         let strat = this.chooseSplitPointStrat(p_id, face_id, t);
         if(strat!=-1){
@@ -878,9 +920,21 @@ class Controller{
 
 
     splitCellIntoFace(cellId, cellType){
+        let cell_name = "";
+        if(cellType==0){
+            cell_name = "point";
+        }
+        else{
+            cell_name = "edge";
+        }
+
+        console.log("creation of a face from "+cell_name+" "+cellId);
+
+
         if(cellType==0){
             let pointId = cellId;
             let planEquation = this.pointData.embeddedPlanEquation[pointId];
+            console.log("pe : ",planEquation);
 
             let h = this.pointData.heIndex[pointId];
 
@@ -1512,6 +1566,98 @@ class Controller{
     copy(){
         
         return new Controller(this.faceData.copy(), this.pointData.copy(), this.halfEdgeData.copy(), this.edgeData.copy(), this.LoD, this.material, true);
+    }
+
+
+    //print fonctions
+
+    printFace(f_id){
+        console.log("===========FACE "+String(f_id)+"===========");
+        let h_o_ext = this.faceData.hExtIndex[f_id];
+        let he = h_o_ext;
+        let he_ext = [];
+        do{
+            he_ext.push(he);
+            he = this.halfEdgeData.next(he);
+        }while(he!=h_o_ext)
+
+        let s_ext = this.ringToString(he_ext);
+        
+        console.log(s_ext);
+
+
+        let s_int = [];
+        let h_o_int = this.faceData.hIntIndices[f_id];
+        h_o_int.forEach(h_o_i=>{
+            let he = h_o_i;
+            let he_int = [];
+            do{
+                he_int.push(he);
+                he = this.halfEdgeData.next(he);
+            }while(he!=h_o_i)
+            s_int.push(this.ringToString(he_int));
+        })
+
+        s_int.forEach(s_i=>{
+            console.log(s_i);
+        })
+
+        console.log("=============================");
+
+    }
+
+    printEdge(e_id){
+        
+    }
+
+    printVertex(p_id){
+        
+    }
+
+    ringToString(ring ){
+        let n = ring.length;
+        let height = Math.floor(n/2);
+        let diff = ring.length%2;
+        let v_middle = this.halfEdgeData.vertex(ring[height]);
+        let connector  = "-".repeat(3+diff*8)+">";
+        let space      = " ".repeat(2+4+diff*8);
+        
+        let res = " ".repeat(4+4*diff)+("    "+ring[n-1]).slice(-3)+" ".repeat(4+4*diff)+"\n";
+        //console.log(ring);
+        if(n<=3){
+            res+=" ".repeat(4)+connector+" ".repeat(4)+"\n";
+        }
+
+        for(let i=0; i<height; i++){
+            let l = "";
+            let p1 = " "+("    "+String(this.halfEdgeData.vertex(ring[n-1-i]))).slice(-3);
+            let p2 = ("    "+String(this.halfEdgeData.vertex(ring[i]))).slice(-3)+" ";
+            
+            if(i==height-1){
+                if(diff == 0){
+                    l+=String(p1)+"<---"+String(p2)+"\n";
+                    l+=" ".repeat(4)+("    "+ring[i]).slice(-3)+" ".repeat(4);
+                }
+                else{
+                    l+=String(p1)+"<---"+(" ".repeat(4)+v_middle).slice(-3)+"<---"+String(p2)+"\n";
+                    l+=" ".repeat(4)+(" ".repeat(4)+ring[i+1]).slice(-3)+" ".repeat(3)+("    "+ring[i]).slice(-3)+" ".repeat(4);
+                }
+            }
+            else{
+                if(i==0){
+                    l+=String(p1)+connector+String(p2);
+                }
+                else{
+                    l+=String(p1)+space+String(p2);
+                }
+                l+="\n";
+                l+=                 " ".repeat(3)+"^"+space+"|"+("    "+ring[i]).slice(-3)+"\n";
+                l+=("    "+ring[n-2-i]).slice(-3)+"|"+space+"v\n";
+            }
+            res+=l;
+            
+        }
+        return res;
     }
 
 
