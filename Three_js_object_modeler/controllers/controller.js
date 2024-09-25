@@ -14,9 +14,10 @@ import { Vector2 } from 'three';
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 
 import * as ExactMathUtils from '../utils/exactMathUtils';
+import { ExactMatrix } from '../utils/exactMatrix';
 
 class Controller{
-    static epsilon = 0.1;
+    static epsilon = N(0);
     static maxId = 0;
     constructor(faceData, pointData, halfEdgeData, edgeData, LoD, material, isCopy=false, isDual=false){
         this.id=Controller.maxId;
@@ -194,19 +195,25 @@ class Controller{
                 //First we check that the required shift value is ok
                 //console.log("before tMin tMax");
                 let [tmin, tmax] = this.findTValidityInterval(faceId);
-                if(ExactMathUtils.gte(tmin,-Controller.epsilon)){
-                    tmin=0;
+                ExactMathUtils.print(tmin, tmax);
+                if(ExactMathUtils.gte(tmin,N(0))){
+                    tmin=N(0);
                 }
-                if(ExactMathUtils.lte(tmax,Controller.epsilon)){
-                    tmax=0;
+                if(ExactMathUtils.lte(tmax,N(0))){
+                    tmax=N(0);
                 }
                 let delta_final = delta;
-                if(ExactMathUtils.lte(delta,0) && ExactMathUtils.lte(delta,tmin)){
+                let printM = false;
+                if(ExactMathUtils.lte(delta,tmin)){
                     delta_final = tmin;
+                    console.log("EVENT min");
+                    printM = true;
                     //delta_final = 0;
                 }
-                else if(ExactMathUtils.gt(delta,0) && ExactMathUtils.gte(delta,tmax)){
+                else if(ExactMathUtils.gte(delta,tmax)){
                     delta_final = tmax;
+                    console.log("EVENT max");
+                    printM = true;
                     //delta_final = 0;
                 }
                 this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
@@ -215,10 +222,9 @@ class Controller{
                // console.log("============================", this.edgeData.count);
                 for(let i=0; i<this.edgeData.count; i++){
                     let he_p = this.edgeData.heIndex[i];
-                    console.log("---------- edge "+String(i)+", he "+String(he_p)+", length :"+ String(this.edgeLength(i)));
+                    //console.log("---------- edge "+String(i)+", he "+String(he_p)+", length :"+ String(this.edgeLength(i)));
                     //console.log(i);
-                    if(this.edgeLength(i)<Controller.epsilon){
-                        //console.log(i);
+                    if(this.edgeNullified(i, printM)){
                         let degenerated_face = Certificats.faceDegenerated(this, i);
                         if(degenerated_face==-1){
                             this.degenerateEdge(i);
@@ -241,10 +247,10 @@ class Controller{
                     }
                 }
                 
-                if(faceDeleted==Infinity){
+                /*if(faceDeleted==Infinity){
                     //console.log("end shift", delta, delta_final);
                     this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub((delta.sub(delta_final)));
-                }
+                }*/
                 
                 
                //}
@@ -288,8 +294,35 @@ class Controller{
     updatePoint(pointId, newCoord){
         this.pointData.coords[pointId] = newCoord;
         //Update faces plane equations
-
+        
     }
+
+    edgeNullified(e_id, print = false){
+        let he1 = this.edgeData.heIndex[e_id];
+        let he2 = this.halfEdgeData.opposite(he1);
+
+        let p1 = this.halfEdgeData.vertex(he1);
+        let p2 = this.halfEdgeData.vertex(he2);
+
+        let faces1 = this.findAdjacentFaces(p1);
+        let faces2 = this.findAdjacentFaces(p2);
+
+        let faces = Utils.mergeListsWithoutDoubles(faces1, faces2);
+        let planeEquations = [];
+        faces.forEach(face=>{
+            planeEquations.push([...this.faceData.planeEquation[face]]);
+        })
+        let m = new ExactMatrix(planeEquations);
+        /*if(print){
+            console.log(e_id);
+            m.print();
+            console.log("rank : "+String(m.rank()));
+        }*/
+
+        
+        return (m.rank(print)==3);
+    }
+
     edgeLength(e_id){
         let h = this.edgeData.heIndex[e_id];
         let h_o = this.halfEdgeData.opposite(h);

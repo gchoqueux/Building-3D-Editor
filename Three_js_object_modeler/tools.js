@@ -239,6 +239,7 @@ class ShiftTool extends Tool{
                     console.log(faceId,this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId]);
                     throw e;
                 }
+                let norme = Utils.norme(n);
                 n = Utils.normalize(n);
 
                 debugInfo["normale"] = n;
@@ -280,6 +281,7 @@ class ShiftTool extends Tool{
                 if(orientation.lt(N(0))){
                     delta = delta.neg();
                 }
+                delta = delta.mul(norme);
                 
 
                 debugInfo["delta"] = delta;

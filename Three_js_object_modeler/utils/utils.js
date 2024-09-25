@@ -12,7 +12,7 @@ function norme(v){
     v.forEach(c=>{
         s=s.add(c.mul(c));
     })
-    return N(Math.sqrt(s.toNumber()));
+    return N(String(Math.sqrt(s.toNumber())));
 }
 
 function min(vec1, vec2){
@@ -71,7 +71,7 @@ function crossProduct(v1,v2){
 
 function normalize(v){
     let [a,b,c] = v;
-    let length = N(Math.sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toNumber()));
+    let length = N(String(Math.sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toNumber())));
     return [a.div(length), b.div(length), c.div(length)];
 }
 
@@ -88,7 +88,7 @@ function angle(v1, v2){
     let b_num = [b[0].toNumber(),b[1].toNumber(),b[2].toNumber()];
     console.log(a_num, b_num);*/
     //console.log(dotProduct(a,b).toNumber());
-    return N(acos(dotProduct(a,b).clamp(N(0),N(1)),6));
+    return N(acos(dotProduct(a,b).clamp(N(-1),N(1)),6));
 }
 
 function distance(p1,p2){
@@ -142,9 +142,17 @@ function distance_Pl_Pl(plan1, plan2){
 
     let alpha = angle(n1,n2);
 
-    return (N.min(alpha, (alpha.sub(PI)).abs()));
+    return (N.min(alpha, (alpha.sub(PI(10))).abs()));
     
 
+}
+
+function exactV_to_floatV(v){
+    let fv = [];
+    v.forEach(c=>{
+        fv.push(c.toNumber());
+    })
+    return fv;
 }
 
 

@@ -4,6 +4,7 @@ import matrix, * as Matrix from "matrix-js"
 import * as THREE from 'three';
 import Earcut from "earcut";
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
+import { ExactMatrix } from './utils/exactMatrix';
 
 class Point3D{
     static maxId = 0;
@@ -114,7 +115,7 @@ class LinearRing{
                     }
                     else{
                         tested = true;
-                        let n = Utils.normalize(Utils.crossProduct(v1,v2));
+                        let n = Utils.crossProduct(v1,v2);
                         let [a,b,c] = n;
                         
                         let d = N(0).sub(a.mul(p1.x)).sub(b.mul(p1.y)).sub(c.mul(p1.z));
@@ -209,11 +210,11 @@ class LinearRing{
             d1 = d.neg().div(a);
         }
         
-        let Mr = matrix([
-            [u.toNumber()       , u.mul(v).toNumber(), v.toNumber()      , 0],
-            [u.mul(v).toNumber(), v.mul(v).toNumber(), u.neg().toNumber(), 0],
-            [v.neg().toNumber() , u.toNumber()       ,0                  , 0],
-            [0                  , 0                  ,0                  , 1]
+        let Mr = new ExactMatrix([
+            [u       ,u.mul(v), v      , N(0)],
+            [u.mul(v),v.mul(v), u.neg(), N(0)],
+            [v.neg() ,u       ,N(0)    , N(0)],
+            [N(0)    ,N(0)    ,N(0)    , N(1)]
         ])
         return Mr;
     }
@@ -259,7 +260,8 @@ class Polygon extends Surface{
             valid = valid && interior.checkValidity();
             let plan2 = interior.planeEquation;
 
-            if(Utils.distance_Pl_Pl(plan1, plan2)<=Polygon.epsilon){
+            console.log(Utils.distance_Pl_Pl(plan1, plan2).toNumber(), Utils.distance_Pl_Pl(plan1, plan2).lte(N(Polygon.epsilon)))
+            if(Utils.distance_Pl_Pl(plan1, plan2).lte(N(Polygon.epsilon))){
                 if(plan1[0].mul(plan2[0]).lt(N(0)) && plan1[1].mul(plan2[1]).lt(N(0)) && plan1[2].mul(plan2[2]).lt(N(0)) && plan1[3].mul(plan2[3]).lt(N(0))){
                     for(let i=0; i<=3; i++){
                         plan2[i].neg();
@@ -272,14 +274,14 @@ class Polygon extends Surface{
                 valid = false;
             }
         })
-
+        /*
         if(valid){
             let normal = this.planeEquation.slice(0,3);
             let d = this.planeEquation[3];
             let n = Utils.norme(normal);
             normal = Utils.normalize(normal);
-            this.planeEquation = [...normal, d/n];
-        }
+            this.planeEquation = [...normal, d.div(n)];
+        }*/
         
         return valid;
     }
@@ -310,11 +312,11 @@ class Polygon extends Surface{
         else{
             let M = this.computeToHorizontalMatrix();
             for(let i=0; i<pointsCoordinates.length/3; i++){
-                let pt = matrix([[pointsCoordinates[3*i]], [pointsCoordinates[3*i+1]], [pointsCoordinates[3*i+2]],[1]]);
-                let h_pt = matrix(M.prod(pt));
-                pointsCoordinates[3*i    ] = h_pt(0,0);
-                pointsCoordinates[3*i + 1] = h_pt(1,0);
-                pointsCoordinates[3*i + 2] = h_pt(2,0);
+                let pt = new ExactMatrix([[pointsCoordinates[3*i]], [pointsCoordinates[3*i+1]], [pointsCoordinates[3*i+2]],[1]]);
+                let h_pt = M.prod(pt);
+                pointsCoordinates[3*i    ] = h_pt[0][0].toNumber();
+                pointsCoordinates[3*i + 1] = h_pt[1][0].toNumber();
+                pointsCoordinates[3*i + 2] = h_pt[2][0].toNumber();
             }
             this.triangulation = Earcut(pointsCoordinates, holes, 3);
         }
@@ -407,11 +409,11 @@ class Polygon extends Surface{
             d1 = d.neg().div(a);
         }
         
-        let Mr = matrix([
-            [u.toNumber()       , u.mul(v).toNumber(), v.toNumber()      , 0],
-            [u.mul(v).toNumber(), v.mul(v).toNumber(), u.neg().toNumber(), 0],
-            [v.neg().toNumber() , u.toNumber()       ,0                  , 0],
-            [0                  , 0                  ,0                  , 1]
+        let Mr = new ExactMatrix([
+            [u       , u.mul(v), v      , N(0)],
+            [u.mul(v), v.mul(v), u.neg(), N(0)],
+            [v.neg() , u       ,N(0)    , N(0)],
+            [N(0)    , N(0)    ,N(0)    , N(1)]
         ])
         return Mr;
     }

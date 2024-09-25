@@ -6,41 +6,26 @@ import { dualMaterial, buildingMaterialDebug, buildingMaterial, pointsMaterial, 
 
 import { mock_builds } from './objectCreation.js';
 
-import { GeometryBuilder,MockModelBuilder, CityJSONModelBuilder } from './Builders/Builder.js';
 
 import { ToolBar } from './tools.js';
 import { CityJSONParser } from './Parser.js';
 import { ControllersCollection } from './controllers/controllersCollection.js';
 import { loaders } from './loaders/loaders.js';
-
-import * as Utils from './utils/utils.js';
-
+import { ExactMatrix } from './utils/exactMatrix.js';
 const w = window;
 
 {
 
-    //Test Values
-    let triangleId = 15;
-    let delta      = 0.05;
 
     let screen_split_ratio = 1.;
 
     //Pour le debug graphique
     const material_debug = buildingMaterialDebug;
-    //material_debug.side = THREE.DoubleSide;
-
-    /*let material_building = new BuildingMaterial({color:0x00ff00, reflectivity:0.5, shininess : 40, specular : 0xff0000});
-    let material = material_building;
-    
-
-    material_building.side = THREE.DoubleSide;*/
     let material_building = buildingMaterial;
     let material = material_building;
 
 
     //////////////////////////////Scene creation
-
-    //let containerDiv = document.getElementById("three_container");
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xcccccc);
@@ -49,8 +34,6 @@ const w = window;
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth*screen_split_ratio, window.innerHeight );
-    //renderer.setScissorTest( true );
-    //containerDiv.appendChild( renderer.domElement );
     document.body.appendChild( renderer.domElement );
 
 
@@ -135,15 +118,6 @@ const w = window;
     
 
     function onMove(event){
-        
-        /*for(let i=0; i<geometricalController.dualController.vertexData.count; i++){
-            if(geometricalController.dualController.vertexData.pIndex.getX(i)==1){
-                let [x,y,z] = geometricalController.dualController.vertexData.coords.getXYZ(i);
-                console.log("==>",x,",",y,",",z);
-            }
-        }*/
-        /*let [x,y,z] = geometricalController.dualController.pointData.coords[3];
-        console.log("==>",x,",",y,",",z);*/
         //recomputeDualPoints(geometricalController, dualPoints)
         if(controllers.getSelectedController()){
             dualScene.remove(controllers.getSelectedController().dualController.vertexData);
@@ -166,12 +140,6 @@ const w = window;
                 vertex_data.geometry.computeBoundingSphere();
                 let center = vertex_data.geometry.boundingSphere.center;
                 let r = vertex_data.geometry.boundingSphere.radius;
-                
-
-                /*let diag = new THREE.Vector3();
-                camera.getWorldDirection(diag);
-                diag.multiplyScalar(2*r);
-                let pos = center.clone().add(diag);*/
 
 
                 let camTarget = controls.target;
@@ -194,10 +162,7 @@ const w = window;
 
     
 
-    let t=0;
     function animate() {
-        t+=0.01;
-        //graphicalController.faceShift(triangleId, delta);
         requestAnimationFrame( animate );
         controls.update();
         dualControls.update();
@@ -238,7 +203,6 @@ const w = window;
 
     function createFromFile(){
         const files = fileInput.files;
-        //console.log(files[0]);
         const file = URL.createObjectURL(files[0]);
         let parser = new CityJSONParser();
         let cityJSON_promise = parser.loadFile(file);
@@ -249,9 +213,6 @@ const w = window;
             cityJSON_array.forEach(cityJSON_object=>{
                 let threeGroup = loaders.CityJSONLoader.loadObjectGraphics(cityJSON_object, scene);
             
-                
-                //scene.add( threeGroup );
-                //console.log(centerJSON);
                 threeGroup.traverse(threeObj=>{
                     if(threeObj.geometry){
                         threeObj.geometry.computeBoundingBox();
@@ -264,13 +225,6 @@ const w = window;
 
                         let center = threeObj.geometry.boundingSphere.center;
                         let r = threeObj.geometry.boundingSphere.radius;
-                        
-
-                        /*let diag = new THREE.Vector3();
-                        camera.getWorldDirection (diag);
-                        diag.multiplyScalar(2*r);
-                        let pos = center.clone().add(diag);*/
-
 
                         let camTarget = controls.target;
                         let camPos = camera.position;
@@ -330,7 +284,6 @@ const w = window;
     //Debug tools
     let wireframe_switch = document.getElementById("wireframe_switch");
     wireframe_switch.onchange = function(e){
-        //material_building.uniforms.wireframe.value = e.target.checked;
         material_building.wireframe = e.target.checked;
         material_debug.uniforms.wireframe.value = e.target.checked;
         dualMaterial.uniforms.wireframe.value = e.target.checked;

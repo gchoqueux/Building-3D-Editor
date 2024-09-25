@@ -218,5 +218,24 @@ function lte(value1, value2){
     }
 }
 
+function print(...values){
+    let s="";
+    values.forEach(value=>{
+        if(typeof(value)=='number'){
+            s+=String(value)+"  ";
+        }
+        else{
+            s+=String(value.toNumber())+"  ";
+        }
+    })
+    console.log(s);
+}
 
-export {max, min, gt, gte, lt, lte}
+
+
+
+
+
+
+
+export {max, min, gt, gte, lt, lte, print}
