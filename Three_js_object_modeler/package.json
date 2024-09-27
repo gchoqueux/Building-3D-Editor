@@ -9,7 +9,8 @@
     "earcut": "^2.2.4",
     "matrix-js": "^1.6.1",
     "three": "^0.151.3",
-    "exactnumber": "^1.0.1"
+    "exactnumber": "^1.0.1",
+    "heap-js":"^2.5.0"
   },
   "devDependencies": {
     "vite": "^4.3.3"
