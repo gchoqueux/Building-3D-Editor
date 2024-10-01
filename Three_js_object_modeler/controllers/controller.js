@@ -54,8 +54,6 @@ class Controller{
                 this.updateEmbeddedPlans();
 
             }
-
-            
             
             this.material = material;
             this.sceneBuilder.build(this, this.material);
@@ -111,6 +109,13 @@ class Controller{
             this.dualController.onChange();
         }
         //console.log("end onChange");
+
+        for(let i=0; i<this.faceData.count; i++){
+            this.printFace(i);
+        }
+        for(let i=0; i<this.pointData.count; i++){
+            this.printVertex(i);
+        }
     }
 
     rebuildScene(){
@@ -206,14 +211,14 @@ class Controller{
                 let printM = false;
                 if(ExactMathUtils.lte(delta,tmin)){
                     delta_final = tmin;
-                    console.log("EVENT min");
-                    printM = true;
+                    //console.log("EVENT min");
+                    //printM = true;
                     //delta_final = 0;
                 }
                 else if(ExactMathUtils.gte(delta,tmax)){
                     delta_final = tmax;
-                    console.log("EVENT max");
-                    printM = true;
+                    //console.log("EVENT max");
+                    //printM = true;
                     //delta_final = 0;
                 }
                 this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
@@ -1673,6 +1678,22 @@ class Controller{
 
     printFace(f_id){
         console.log("===========FACE "+String(f_id)+"===========");
+        let planEquationFloat = [...this.faceData.planeEquation[f_id]];
+        if(typeof(planEquationFloat[0])!="number"){
+            planEquationFloat[0]=planEquationFloat[0].toNumber();
+        }
+        if(typeof(planEquationFloat[1])!="number"){
+            planEquationFloat[1]=planEquationFloat[1].toNumber();
+        }
+        if(typeof(planEquationFloat[2])!="number"){
+            planEquationFloat[2]=planEquationFloat[2].toNumber();
+        }
+        if(typeof(planEquationFloat[3])!="number"){
+            planEquationFloat[3]=planEquationFloat[3].toNumber();
+        }
+        console.log("Plane equation : "+String(planEquationFloat));
+
+
         let h_o_ext = this.faceData.hExtIndex[f_id];
         let he = h_o_ext;
         let he_ext = [];
@@ -1710,8 +1731,26 @@ class Controller{
         
     }
 
-    printVertex(p_id){
-        
+    printVertex(v_id){
+        console.log("===========Vertex "+String(v_id)+"===========");
+        let faces = this.findAdjacentFaces(v_id);
+        console.log("Adjacent faces : "+String(faces));
+        let values = [];
+        for(let i=0; i<faces.length; i++){
+            values.push([...this.faceData.planeEquation[faces[i]]]);
+        }
+        let M = new ExactMatrix(values);
+        console.log("Plane equations : ");
+        M.print();
+        let rank = M.rank(false);
+        console.log("Rank : "+rank);
+        if(rank>3){
+            M.rank(true);
+        }
+        /*console.log("Reduced matrix : ");
+        let M_reduced = M.reducedMatrix();
+        M_reduced.print();*/
+        console.log("=============================");
     }
 
     ringToString(ring ){

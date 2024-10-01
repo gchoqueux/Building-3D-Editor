@@ -214,6 +214,55 @@ class ExactMatrix{
 
     }
 
+
+    /**
+     * Computes the reduced matrix using the Gauss Jordan algorithm.
+     */
+    reducedMatrix(p=false){
+        let r=-1;
+        let values_copy = [];
+        for (let i=0; i<this.h; i++){
+            values_copy.push([...this.values[i]]);
+        }
+
+
+        for(let j=0; j<Math.min(this.l, this.h); j++){
+            let k = this.__findMaxAbsoluteValueOnColumn__(j, r+1, values_copy);
+            let a_kj = values_copy[k][j];
+            if(!a_kj.isZero()){
+                r=r+1;
+                for(let l=j; l<this.l; l++){
+                    values_copy[k][l] = values_copy[k][l].div(a_kj);
+                }
+                if(k!=r){
+                    this.__swapLines__(k,r,values_copy);
+                }
+                for(let i=0; i<this.h; i++){
+                    if(i!=r){
+                        let a_ij = values_copy[i][j];
+                        for(let l=j+1; l<this.l; l++){
+                            values_copy[i][l] = values_copy[i][l].sub(a_ij.mul(values_copy[r][l]));
+                        }
+                        values_copy[i][j] = N(0);
+                    }
+                }
+            }
+            if(p){
+                let m = new ExactMatrix(values_copy);
+                m.print();
+            }
+        }
+        if(p){
+            console.log("[][][][][][]");
+            let m = new ExactMatrix(values_copy);
+            console.log(r+1);
+            this.print();
+            m.print();
+            console.log("[][][][][][]");
+        }
+        return new ExactMatrix(values_copy);
+    }
+
     /**
      * Computes the rank of the matrix using the Gauss Jordan algorithm.
      */
@@ -225,7 +274,7 @@ class ExactMatrix{
         }
 
 
-        for(let j=0; j<this.l; j++){
+        for(let j=0; j<Math.min(this.l, this.h); j++){
             let k = this.__findMaxAbsoluteValueOnColumn__(j, r+1, values_copy);
             let a_kj = values_copy[k][j];
             if(!a_kj.isZero()){
