@@ -290,16 +290,16 @@ class GeometryBuilder{
      */
     getScene(material){
         let c;
-        try{
+        /*try{*/
             c = new Controller(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material);
             this.correctPlans(c);
             c.onChange();
             return (c);
-        }
+        /*}
         catch(error){
             console.error("Building could not be imported due to "+error);
             return (undefined);
-        }
+        }*/
         
     }
 

@@ -162,10 +162,19 @@ function distance_Point_Pl(point, plan){
     
     let [x,y,z]=point;
     let [a,b,c,d]=plan;
+    //console.log(a.toNumber(),b.toNumber(),c.toNumber(),d.toNumber());
     let num = a.mul(x).add(b.mul(y)).add(c.mul(z)).add(d).abs();
-    let den = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)),6);
+    let den = a.mul(a).add(b.mul(b)).add(c.mul(c));
+    //den = N(String(Math.sqrt(den.toNumber())))
+    let res= num.mul(num).div(den);
+    /*if(!den.isZero()){
+        res = num.div(den);
+    }
+    else{
+        res = Infinity;
+    }*/
 
-    return (num.div(den));
+    return (res);
     
 
 }
@@ -313,6 +322,72 @@ function mergeListsWithoutDoubles(...lists){
     })
     return res;
 }
+
+/**
+ * 
+ * @param {Array} l1 
+ * @param {Array} l2 
+ * @returns 
+ */
+function homogeneousMergeWithoutDoubles(l1,l2){
+    let res = [];
+    
+    let [i1,i2]=[0,0];
+    let l2_without_l1 = [];
+    let l2_union_l1 = [];
+
+    l2.forEach(el=>{
+        if(l1.indexOf(el)==-1){
+            l2_without_l1.push(el);
+        }
+        else{
+            l2_union_l1.push(el);
+        }
+    })
+
+    l2 = l2_without_l1.concat(l2_union_l1);
+
+
+
+
+    let l1_without_l2 = [];
+    let l1_union_l2 = [];
+
+    l1.forEach(el=>{
+        if(l2.indexOf(el)==-1){
+            l1_without_l2.push(el);
+        }
+        else{
+            l1_union_l2.push(el);
+        }
+    })
+
+    l1 = l1_without_l2.concat(l1_union_l2);
+    
+    while(i1<l1_without_l2.length ||i2<l2_without_l1.length){
+        while(i1<l1_without_l2.length&&res.indexOf(l1_without_l2[i1])!=-1){
+            i1++;
+        }
+        if(i1<l1_without_l2.length){
+            res.push(l1_without_l2[i1]);
+            i1++;
+        }
+
+        while(i2<l2_without_l1.length&&res.indexOf(l2_without_l1[i2])!=-1){
+            i2++;
+        }
+        if(i2<l2_without_l1.length){
+            res.push(l2_without_l1[i2]);
+            i2++;
+        }
+    }
+
+
+    res = res.concat(l1_union_l2);
+    return res;
+}
+
+
 
 function indexOf(e, l){
     if(e.length){
@@ -476,4 +551,4 @@ function computeBBOX_CityJson(cityJsonData){
 
 
 
-export{computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+export{homogeneousMergeWithoutDoubles,computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}

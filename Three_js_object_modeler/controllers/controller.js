@@ -2,7 +2,7 @@ import matrix from 'matrix-js';
 import * as Utils from '../utils/utils'
 import * as GeomUtils from '../utils/3DGeometricComputes'
 import { Point3D, Polygon } from '../CityGMLGeometricModel';
-import { SceneBuilder } from '../Builders/Builder';
+import { LabelBuilder, SceneBuilder } from '../Builders/Builder';
 import { HalfEdgeData } from '../GeometricalProxy';
 import { DualBuilder } from '../Builders/Builder';
 import { embeddings } from '../GeometricalEmbedding';
@@ -11,6 +11,7 @@ import { isTopologicallyValid } from '../validityCheck';
 import * as THREE from 'three'
 import { pointsMaterial } from '../materials/materials';
 import { Vector2 } from 'three';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 
 import * as ExactMathUtils from '../utils/exactMathUtils';
@@ -30,12 +31,17 @@ class Controller{
         this.dualBuilder = new DualBuilder(embeddings["Trivial"]);
         this.isCopy = isCopy;
         this.isDual = isDual;
-        
+        //isTopologicallyValid(this);
+        //this.eventQueue = new;
+        this.leftEvent=null;
+        this.rightEvent=null;
         if(!isCopy){
+            isTopologicallyValid(this);
             this.stop = false;
             this.reorientNormals();
 
             this.sceneBuilder = new SceneBuilder();
+            this.labelBuilder = new LabelBuilder();
 
 
             //this.geometricalModel = geometricalModel;
@@ -52,6 +58,9 @@ class Controller{
                     this.edgeData.flipable[i] = this.isflipable(i);
                 }
                 this.updateEmbeddedPlans();
+                this.labelBuilder.build(this, this.material);
+
+                this.labelData = this.labelBuilder.getLabel();
 
             }
             
@@ -59,6 +68,9 @@ class Controller{
             this.sceneBuilder.build(this, this.material);
     
             this.vertexData = this.sceneBuilder.getScene();
+
+
+            
         }
         
 
@@ -99,6 +111,7 @@ class Controller{
         this.updateScene();
         //console.log("before get scene");
         this.vertexData = this.sceneBuilder.getScene();
+        this.labelData = this.labelBuilder.getLabel();
         
         if(!(this.dualController == null)){
             //console.log("before dual build");
@@ -110,20 +123,26 @@ class Controller{
         }
         //console.log("end onChange");
 
-        for(let i=0; i<this.faceData.count; i++){
+        /*for(let i=0; i<this.faceData.count; i++){
             this.printFace(i);
         }
         for(let i=0; i<this.pointData.count; i++){
             this.printVertex(i);
-        }
+        }*/
     }
 
     rebuildScene(){
         this.sceneBuilder.build(this, this.material);
+        if(!this.isDual){
+            this.labelBuilder.build(this, this.material);
+        }
     }
 
     updateScene(){
         this.sceneBuilder.update(this, this.material);
+        if(!this.isDual){
+            this.labelBuilder.update(this, this.material);
+        }
     }
 
 
@@ -143,129 +162,137 @@ class Controller{
 
 
 
-    //Manipulation functions
-    faceShift2(faceId, delta){
-        console.log("===MOVING FACE "+String(faceId)+"===");
-
-        let faceDeleted = Infinity;
-
-        //We verify that all points which must be splitted can be without any issue
-        let splittable = true;
-        for(let i=0; i<this.pointData.count; i++){
-            //console.log(i);
-            let adjFaces = this.findAdjacentFaces(i);
-            //console.log(adjFaces);
-            if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
-                //console.log("before split");
-                splittable = (this.chooseSplitPointStrat(i, faceId, delta)!=-1);
-            }
-            else if(adjFaces.includes(faceId)&&(adjFaces.length>=5) && !this.stop){
-                splittable = false;
-            }
-            if(!splittable){
-                break;
-            }
-        }
-
-
-
-         
-        if(splittable){
-            
-            //If it's ok, we check that all the points can be spiltted
-            let able_to_shift = true;
-
+    faceShift(faceId, delta){
+        console.log("========= Moving face "+String(faceId)+" ===========");
+        let faceDeleted = [];
+        
+        while(!(delta.isZero()&&!(this.leftEvent&&this.leftEvent.t.isZero())&&!(this.rightEvent&&this.rightEvent.t.isZero()))){
+            //split points
+            let pointsToSplit = [];
+            let splittable = true;
             for(let i=0; i<this.pointData.count; i++){
                 let adjFaces = this.findAdjacentFaces(i);
+                let splitStrat;
                 if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
-                    //console.log("before split");
-                    //console.log("split strat ========>",this.splitPointOnMvt(i, faceId, delta));
-                    let strat = this.chooseSplitPointStrat(i, faceId, delta);
-                    able_to_shift = (strat!=-1);
+                    splitStrat = this.chooseSplitPointStrat(i, faceId, delta);
+                    pointsToSplit.push({p_id:i, e_id:-1});
                 }
-                if(able_to_shift){
+                else if(adjFaces.includes(faceId)&&(adjFaces.length>=5) && !this.stop){
+                    splitStrat = -1;
+                }
+                splittable = (splitStrat!=-1);
+                if(!splittable){
                     break;
                 }
             }
-
-
-            if(able_to_shift && !this.stop){
-                //If it is ok, we split the points
-                for(let i=0; i<this.pointData.count; i++){
-                    let adjFaces = this.findAdjacentFaces(i);
-                    if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
-                        this.splitPointOnMvt(i, faceId, delta)
-                    }
+            if(splittable){
+                for(let i=0; i<pointsToSplit.length; i++){
+                    this.splitPointOnMvt(pointsToSplit[i].p_id, faceId, delta);
+                    pointsToSplit[i].e_id = this.edgeData.count-1;
+                    //this.printFace(5);
                 }
-                //First we check that the required shift value is ok
-                //console.log("before tMin tMax");
-                let [tmin, tmax] = this.findTValidityInterval(faceId);
-                ExactMathUtils.print(tmin, tmax);
-                if(ExactMathUtils.gte(tmin,N(0))){
-                    tmin=N(0);
-                }
-                if(ExactMathUtils.lte(tmax,N(0))){
-                    tmax=N(0);
-                }
-                let delta_final = delta;
-                let printM = false;
-                if(ExactMathUtils.lte(delta,tmin)){
-                    delta_final = tmin;
-                    //console.log("EVENT min");
-                    //printM = true;
-                    //delta_final = 0;
-                }
-                else if(ExactMathUtils.gte(delta,tmax)){
-                    delta_final = tmax;
-                    //console.log("EVENT max");
-                    //printM = true;
-                    //delta_final = 0;
-                }
-                this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
-                //Si nécesaire, fusionner les points qui sont confondus
-    
-               // console.log("============================", this.edgeData.count);
-                for(let i=0; i<this.edgeData.count; i++){
-                    let he_p = this.edgeData.heIndex[i];
-                    //console.log("---------- edge "+String(i)+", he "+String(he_p)+", length :"+ String(this.edgeLength(i)));
-                    //console.log(i);
-                    if(this.edgeNullified(i, printM)){
-                        let degenerated_face = Certificats.faceDegenerated(this, i);
-                        if(degenerated_face==-1){
-                            this.degenerateEdge(i);
-                            i=-1;
-                        }
-                        else{
-                            faceDeleted = degenerated_face;
-                            this.degenerateEdge(i);
-                            this.degenerateFace(degenerated_face);
-                            //isTopologicallyValid(this);
-                            i=-1;
-                        }
-                        /*console.log("=*".repeat(8));
-                        console.log("=*".repeat(8));
-                        for(let i=0; i<this.faceData.count; i++){
-                            this.printFace(i);
-                        }
-                        console.log("=*".repeat(8));
-                        console.log("=*".repeat(8));*/
-                    }
-                }
-                
-                /*if(faceDeleted==Infinity){
-                    //console.log("end shift", delta, delta_final);
-                    this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub((delta.sub(delta_final)));
-                }*/
-                
-                
-               //}
             }
-    
+            else{
+                break;
+            }
+            
+            
+            //move to next event
+            //console.log(pointsToSplit);
+            let encounteredEvent;
+            
+            this.findTValidityInterval(faceId, pointsToSplit);
+            //console.log(this.leftEvent, this.rightEvent);
+            let delta_final = delta;
+            
+            if(this.leftEvent&&ExactMathUtils.lte(delta,this.leftEvent.t)){
+                delta_final = this.leftEvent.t;
+                /*console.log("EVENT min");
+                console.log(t_min, delta.toNumber());*/
+                this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
+                encounteredEvent = this.leftEvent;
+                
+                //printM = true;
+                //delta_final = 0;
+            }
+            else if(this.rightEvent&&ExactMathUtils.gte(delta,this.rightEvent.t)){
+                delta_final = this.rightEvent.t;
+                /*console.log("EVENT max");
+                console.log(t_max, delta.toNumber());*/
+                this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
+                encounteredEvent = this.rightEvent;
+                
+                //printM = true;
+                //delta_final = 0;
+            }
+            else{
+                this.faceData.planeEquation[faceId][3] = this.faceData.planeEquation[faceId][3].sub(delta_final);
+                this.resetExactNumbersTree(faceId);
+            }
+
+            
+            
+
+
+            //console.log(delta.toNumber(), delta_final.toNumber(), delta.sub(delta_final).toNumber());
+            delta = delta.sub(delta_final);
+
+
+            //degenerate faces
+            do{
+                //degenerate edges
+                if(encounteredEvent){
+                    if(encounteredEvent.type=="Edge degeneration"){
+                        this.degenerateEdge(encounteredEvent.degeneratedCell);
+                    }
+                    else if(encounteredEvent.type=="Face degeneration"){
+                        this.degenerateFace(encounteredEvent.degeneratedCell);
+                    }
+                    this.labelBuilder.update(this,this.material);
+                    this.labelData = this.labelBuilder.getLabel();
+                    /*for(let i=0; i<this.faceData.count; i++){
+                        this.printFace(i);
+                    }*/
+                }
+                
+                let faceDegenerations = this.detectFaceDegenerations(faceId);
+                faceDegenerations.forEach(event=>{
+                    this.degenerateFace(event.degeneratedCell);
+                    faceDeleted.push(event.degeneratedCell);
+                    /*for(let i=0; i<this.faceData.count; i++){
+                        this.printFace(i);
+                    }*/
+                    this.labelBuilder.update(this,this.material);
+                    this.labelData = this.labelBuilder.getLabel();
+                })
+                this.stop = faceDeleted.indexOf(faceId)!=-1;
+                if(this.stop){break}
+                this.findTValidityInterval(faceId);
+                encounteredEvent = this.rightEvent;
+                let leftT = -Infinity;
+                let rightT = Infinity;
+                if(this.leftEvent){
+                    leftT = this.leftEvent.t.toNumber();
+                }
+                if(this.rightEvent){
+                    rightT = this.rightEvent.t.toNumber();
+                }
+                //console.log(this.leftEvent, leftT,this.rightEvent, rightT);
+                
+            }while((!this.stop)&&encounteredEvent&& encounteredEvent.t.isZero())
+            isTopologicallyValid(this);
+            if(this.stop){
+                break;
+            }
+            
         }
-        //isTopologicallyValid(this);
+        this.stop = false;
+        /*for(let i=0; i<this.faceData.count; i++){
+            this.printFace(i);
+        }*/
         return faceDeleted;
-        
     }
+
 
     findAdjacentFaces(pointId){
         let faces = [];
@@ -443,6 +470,22 @@ class Controller{
         
     }
 
+    computeEdgeCenter(edgeID){
+        let he_0 = this.edgeData.heIndex[edgeID];
+        let he_1 = this.halfEdgeData.opposite(he_0);
+        let p0_id = this.halfEdgeData.vertex(he_0);
+        let p1_id = this.halfEdgeData.vertex(he_1);
+        let [x0,y0,z0] = this.computeCoords(p0_id);
+        let [x1,y1,z1] = this.computeCoords(p1_id);
+        let [cx,cy,cz]= [0,0,0];
+        cx=(x0+x1)/2.;
+        cy=(y0+y1)/2.;
+        cz=(z0+z1)/2.;
+        
+        return [cx, cy, cz];
+        
+    }
+
     updateEmbeddedPlans(){
         for(let i=0; i<this.pointData.count; i++){
             if(typeof(this.pointData.embeddedPlanEquation[i][0])=="number"){
@@ -517,80 +560,118 @@ class Controller{
 
     }
 
-    findTValidityInterval(fIndex){
-        let tmax=[];
-        let tmin=[];
-        //TODO : réécrire sans triangles 
+    findTValidityInterval(fIndex, pointsSplitted=[]){
+        //console.log("----------");
+        let edgesFromSplit = [];
+        pointsSplitted.forEach(e=>{
+            edgesFromSplit.push(e.e_id);
+        })
+        //console.log(edgesFromSplit);
+        this.leftEvent = undefined;
+        this.rightEvent = undefined;
         let paramPlanM = this.faceData.planeEquation[fIndex];
-        //On vérifie que les triangles ne s'applatissent pas
-        //console.log(this.sceneBuilder.triangleData);
-        for(let i=0; i<this.sceneBuilder.triangleData.fIndex.length; i++){
-            if(this.sceneBuilder.triangleData.fIndex[i]==fIndex){
-                let p1=this.sceneBuilder.triangleData.pIndex[3*i  ];
-                let p2=this.sceneBuilder.triangleData.pIndex[3*i+1];
-                let p3=this.sceneBuilder.triangleData.pIndex[3*i+2];
-
-                let faces1 = this.findAdjacentFaces(p1);
-                let faces2 = this.findAdjacentFaces(p2);
-                let faces3 = this.findAdjacentFaces(p3);
-
-                
-                faces1.splice(faces1.indexOf(fIndex),1);
-                faces2.splice(faces2.indexOf(fIndex),1);
-                faces3.splice(faces3.indexOf(fIndex),1);
-
-                let ptFaces = [faces1, faces2, faces3];
-
-                let edges = [[0,1],[1,2],[0,2]]
-
-                for(let i=0; i<3; i++){
-                    let [id_pt1, id_pt2] = edges[i];
-                    if(Utils.nbCommonElts(ptFaces[id_pt1], ptFaces[id_pt2])==0){
-                        edges.splice(i,1);
-                        break;
-                    }
-                }
-
-                edges.forEach(e=>{
-                    let [id_pt1, id_pt2] = e;
-                    let planes = Utils.mergeListsWithoutDoubles(ptFaces[id_pt1], ptFaces[id_pt2]);
-                    let paramPlan1 = this.faceData.planeEquation[planes[0]];
-                    let paramPlan2 = this.faceData.planeEquation[planes[1]];
-                    let paramPlan3 = this.faceData.planeEquation[planes[2]];
-                    let t_lim = GeomUtils.computeShiftTValidity(paramPlanM, paramPlan1, paramPlan2, paramPlan3);
-                    //console.log(t_lim);
-                    if((typeof(t_lim)=="number"&&t_lim==Infinity) || (typeof(t_lim)!="number"&&t_lim.gt(N(0)))){
-                        tmax.push(t_lim);
-                    }
-                    else if((typeof(t_lim)=="number"&&t_lim==-Infinity) || (typeof(t_lim)=="number"&&t_lim.lt(N(0)))){
-                        tmin.push(t_lim);
-                    }
-                    
-                })
-                
-            }
-        }
-
-        //On vérifie également qu'on ne traverse pas un autre plan
-        let [a,b,c,d] = paramPlanM;
-        for(let i=0; i<this.pointData.count; i++){
-            let faces = this.findAdjacentFaces(i);
+        /*let af = paramPlanM[0].toNumber();
+        let bf = paramPlanM[1].toNumber();
+        let cf = paramPlanM[2].toNumber();
+        let df = paramPlanM[3].toNumber();
+        console.log([af,bf,cf,df]);*/
+        //checkEdgeDegenerations
+        
+        
+        for(let i=0; i<this.edgeData.count; i++){
+            let h0 = this.edgeData.heIndex[i];
+            let h1 = this.halfEdgeData.opposite(h0);
+            let v0 = this.halfEdgeData.vertex(h0);
+            let v1 = this.halfEdgeData.vertex(h1);
+            let faces0 = this.findAdjacentFaces(v0);
+            let faces1 = this.findAdjacentFaces(v1);
             
-            if(faces.indexOf(fIndex)==-1){
-                let [x,y,z] = this.computeCoords(i);
-                let t_lim = a.mul(N(String(x))).add(b.mul(N(String(y)))).add(c.mul(N(String(z)))).add(d);
-                if(t_lim.gte(N(0))){
-                    tmax.push(t_lim);
+            
+            
+            if(faces0.indexOf(fIndex)!=-1||faces1.indexOf(fIndex)!=-1){
+                faces0 = Utils.removeElements(faces0, [fIndex]);
+                faces1 = Utils.removeElements(faces1, [fIndex]);
+
+                let faces = Utils.homogeneousMergeWithoutDoubles(faces0, faces1);
+                //faces = Utils.removeElements(faces, [fIndex]);
+                let t_lim = GeomUtils.computeTCollision(paramPlanM, this.faceData.planeEquation[faces[0]]
+                    ,this.faceData.planeEquation[faces[1]], this.faceData.planeEquation[faces[2]]
+                );
+                let t_limf = 0;
+                if(typeof(t_lim)=="number"){
+                    t_limf = t_lim;
                 }
-                else if(t_lim.lte(0)){
-                    tmin.push(t_lim);
+                else{
+                    t_limf = t_lim.toNumber();
                 }
+                
+                /*if(typeof(t_lim)=="number"){
+                    console.log(i, t_lim);
+                }
+                else{
+                    console.log(i, t_lim.toNumber());
+                }*/
+                if(typeof(t_lim)!="number"){
+                    if(t_lim.isZero()&&edgesFromSplit.indexOf(i)==-1){
+                        /*GeomUtils.computeTCollision(paramPlanM, this.faceData.planeEquation[faces[0]]
+                            ,this.faceData.planeEquation[faces[1]], this.faceData.planeEquation[faces[2]], true
+                        );
+                        console.log(i,faces,t_lim,t_limf,"=0");*/
+                        console.log(i, t_limf, "=0");
+                        this.rightEvent = new TopologicalEvent(fIndex, N(0), "Edge degeneration", i);
+                        this.leftEvent = new TopologicalEvent(fIndex, N(0), "Edge degeneration", i);
+                    }
+                    else if(t_lim.sign()==1&&!t_lim.isZero()){
+                        console.log(i, t_limf, ">0");
+                        if((!this.rightEvent)||ExactMathUtils.lt(t_lim,this.rightEvent.t)){
+                            this.rightEvent = new TopologicalEvent(fIndex, t_lim, "Edge degeneration", i);
+                        }
+                    }
+                    else if(t_lim.sign()==-1&&!t_lim.isZero()){
+                        console.log(i, t_limf, "<0");
+                        if((!this.leftEvent)||ExactMathUtils.gt(t_lim,this.leftEvent.t)){
+                            this.leftEvent = new TopologicalEvent(fIndex, t_lim, "Edge degeneration", i);
+                        }
+                    }
+                    console.log(faces,fIndex);
+                }
+                
             }
         }
+        
 
-
-        return ([ExactMathUtils.max(...tmin), ExactMathUtils.min(...tmax)]);
+        /*let t_min = -Infinity;
+        let t_max =  Infinity;
+        if(this.leftEvent){
+            t_min=this.leftEvent.t.toNumber();
+        }
+        if(this.rightEvent){
+            t_max=this.rightEvent.t.toNumber();
+        }
+        console.log("min/max", t_min, t_max);*/
     }
+
+    detectFaceDegenerations(fIndex){
+        //checkFaceDegeneration
+        let events = [];
+        for(let i=0; i<this.faceData.count; i++){
+            let h0 = this.faceData.hExtIndex[i];
+            let borderCount = 0;
+            let h=h0;
+            do{
+                borderCount+=1;
+                h = this.halfEdgeData.next(h);
+            }while(h!=h0)
+            //console.log(i, borderCount);
+            if(borderCount==2){
+                //let n_f = events.length;//we need a face compter to anticipate the decrease of the faces id
+                events.push(new TopologicalEvent(fIndex, N(0), "Face degeneration", i));
+            }
+        }
+        return events;
+    }
+
+    
 
     /**
      * Degenerate a face by degenerating a given edge
@@ -599,6 +680,7 @@ class Controller{
      */
     degenerateFace(faceId){
         console.log("degenerate face "+String(faceId));
+        this.printFace(faceId);
 
         let planEquation = [...this.faceData.planeEquation[faceId]];
         
@@ -642,7 +724,7 @@ class Controller{
         }
         this.deleteHalfEdge(h_n);
         
-
+        
 
     }
 
@@ -666,10 +748,20 @@ class Controller{
         let h_no  = this.halfEdgeData.opposite(h_n);
         let h_non = this.halfEdgeData.next(h_no);
 
+        let hf=h_n;
+
+        do{
+            this.halfEdgeData.pIndex[hf] = p1;
+            hf = this.halfEdgeData.opposite(hf);
+            hf = this.halfEdgeData.next(hf);
+        }while(hf!=h_o)
+
         this.halfEdgeData.nextIndex[h_p] = h_n;
         this.halfEdgeData.nextIndex[h_op] = h_on;
-        this.halfEdgeData.pIndex[h_n] = p1;
-        this.halfEdgeData.pIndex[h_non] = p1;
+
+        
+
+        
 
         if(this.faceData.hExtIndex[f1][0]==h){
             this.faceData.hExtIndex[f1]=[h_n];
@@ -712,7 +804,7 @@ class Controller{
      * @param {float} shift 
      */
     splitPointOnMvt(p_id, face_id, t){
-        console.log("creation of an edge from point "+p_id);
+        console.log("creation of an edge "+this.edgeData.count +" from point "+p_id);
         //console.log("before choose strat");
         let strat = this.chooseSplitPointStrat(p_id, face_id, t);
         if(strat!=-1){
@@ -1573,7 +1665,7 @@ class Controller{
 
                 h    = h_n;
                 h_n  = h_nn;
-                h_nn = this.faceData.next(h_n);
+                h_nn = this.halfEdgeData.next(h_n);
             }while(h!=h_o)
 
             let [a,b,c,d] = this.faceData.planeEquation[i];
@@ -1584,6 +1676,22 @@ class Controller{
                 //console.log("old/new", old, this.faceData.planeEquation[i]);
             } 
         }
+    }
+
+    /**
+     * Mak a conversion ExactNumber -> Float -> ExactNumber 
+     * to empty the calculation tree;
+     */
+    resetExactNumbersTree(faceId){
+        let [a,b,c,d] = this.faceData.planeEquation[faceId];
+        /*a = a.toNumber();
+        b = b.toNumber();
+        c = c.toNumber();*/
+        d = d.toNumber();
+        /*this.faceData.planEquation[faceId][0]=N(String(a));
+        this.faceData.planEquation[faceId][1]=N(String(b));
+        this.faceData.planEquation[faceId][2]=N(String(c));*/
+        this.faceData.planeEquation[faceId][3]=N(String(d));
     }
 
     /**
@@ -1851,6 +1959,20 @@ class DualController extends Controller{
 
     }
     
+}
+
+
+class TopologicalEvent{
+    constructor(mobileFace, shiftValue, type, degeneratedCell){
+        this.faceM = mobileFace;
+        this.t = shiftValue;
+        this.type = type;
+        this.degeneratedCell = degeneratedCell;
+    }
+
+    resolve(){
+
+    }
 }
 
 

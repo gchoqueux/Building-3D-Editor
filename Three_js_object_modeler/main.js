@@ -12,6 +12,7 @@ import { CityJSONParser } from './Parser.js';
 import { ControllersCollection } from './controllers/controllersCollection.js';
 import { loaders } from './loaders/loaders.js';
 import { ExactMatrix } from './utils/exactMatrix.js';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 const w = window;
 
 {
@@ -35,6 +36,15 @@ const w = window;
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth*screen_split_ratio, window.innerHeight );
     document.body.appendChild( renderer.domElement );
+
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize( window.innerWidth*screen_split_ratio, window.innerHeight );
+    
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild( labelRenderer.domElement );
 
 
     let sun_power = 0.3;
@@ -169,6 +179,7 @@ const w = window;
         render();
 
         renderer.render( scene, camera );
+        labelRenderer.render(scene, camera);
         dualRenderer.render( dualScene, dualCamera );
     }
     animate();

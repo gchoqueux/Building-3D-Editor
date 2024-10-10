@@ -67,7 +67,107 @@ function min(...values){
     return m;
 }
 
+
+
+
+
+
+
+
 function gt(value1, value2){
+    if(typeof(value1)=="number"){
+        if(typeof(value2)=="number"){
+            return value1>value2;
+        }
+        else{
+            let floatValue2 = value2.toNumber();
+            return value1>floatValue2;
+        }
+    }
+    else{
+        if(typeof(value2)=="number"){
+            let floatValue1 = value1.toNumber();
+            return floatValue1>value2;
+        }
+        else{
+            let floatValue1 = value1.toNumber();
+            let floatValue2 = value2.toNumber();
+            return floatValue1>floatValue2;
+        }
+    }
+}
+
+function gte(value1, value2){
+    if(typeof(value1)=="number"){
+        if(typeof(value2)=="number"){
+            return value1>=value2;
+        }
+        else{
+            let floatValue2 = value2.toNumber();
+            return value1>=floatValue2;
+        }
+    }
+    else{
+        if(typeof(value2)=="number"){
+            let floatValue1 = value1.toNumber();
+            return floatValue1>=value2;
+        }
+        else{
+            let floatValue1 = value1.toNumber();
+            let floatValue2 = value2.toNumber();
+            return floatValue1>=floatValue2;
+        }
+    }
+}
+
+function lt(value1, value2){
+    if(typeof(value1)=="number"){
+        if(typeof(value2)=="number"){
+            return value1<value2;
+        }
+        else{
+            let floatValue2 = value2.toNumber();
+            return value1<floatValue2;
+        }
+    }
+    else{
+        if(typeof(value2)=="number"){
+            let floatValue1 = value1.toNumber();
+            return floatValue1<value2;
+        }
+        else{
+            let floatValue1 = value1.toNumber();
+            let floatValue2 = value2.toNumber();
+            return floatValue1<floatValue2;
+        }
+    } 
+}
+
+function lte(value1, value2){
+    if(typeof(value1)=="number"){
+        if(typeof(value2)=="number"){
+            return value1<=value2;
+        }
+        else{
+            let floatValue2 = value2.toNumber();
+            return value1<=floatValue2;
+        }
+    }
+    else{
+        if(typeof(value2)=="number"){
+            let floatValue1 = value1.toNumber();
+            return floatValue1<=value2;
+        }
+        else{
+            let floatValue1 = value1.toNumber();
+            let floatValue2 = value2.toNumber();
+            return floatValue1<=floatValue2;
+        }
+    }
+}
+
+
+/*function gt(value1, value2){
     if(typeof(value1)=="number"){
         if(typeof(value2)=="number"){
             return value1>value2;
@@ -102,6 +202,7 @@ function gt(value1, value2){
             return value1.gt(value2);
         }
     }
+    
 
 }
 
@@ -216,7 +317,7 @@ function lte(value1, value2){
             return value1.lte(value2);
         }
     }
-}
+}*/
 
 function print(...values){
     let s="";
