@@ -39,8 +39,11 @@ class SceneBuilder{
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
             //this.vertex_data.objIndex.push(objId,objId,objId);
 
-            let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
-            
+            let normal = geometricalController.faceData.planeEquation[faceId].slice(0,3);
+            normal[0] = normal[0].toNumber();
+            normal[1] = normal[1].toNumber();
+            normal[2] = normal[2].toNumber();
+            //console.log(geometricalController.faceData.planeEquation[faceId],normal)
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
@@ -102,7 +105,12 @@ class SceneBuilder{
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
             //this.vertex_data.objIndex.push(objId,objId,objId);
 
-            let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
+            //let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
+            let normal = geometricalController.faceData.planeEquation[faceId].slice(0,3);
+            normal[0] = normal[0].toNumber();
+            normal[1] = normal[1].toNumber();
+            normal[2] = normal[2].toNumber();
+            //console.log(geometricalController.faceData.planeEquation[faceId],normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);

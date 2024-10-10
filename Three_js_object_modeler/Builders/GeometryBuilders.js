@@ -150,7 +150,6 @@ class GeometryBuilder{
         }
 
         //console.log("face arrity computed");
-
         
 
         this.face_data_object     = new FaceData(this.face_data.planeEquation,this.face_data.hExtIndex, this.face_data.hIntIndices);

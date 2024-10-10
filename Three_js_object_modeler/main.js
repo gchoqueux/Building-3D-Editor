@@ -249,36 +249,11 @@ const w = window;
                 })
             })
             console.log('file loaded');
-
-            
-
-
-            /*let cityJSONbuilder = new CityJSONModelBuilder();
-            cityJSONbuilder.build(cityJSON_object);
-            let buildings = cityJSONbuilder.getBuildings();
-            //console.log(buildings);
-            let geometryBuilder = new GeometryBuilder();
-            buildings.forEach(building=>{
-                try{
-                    console.log(building);
-                    geometryBuilder.build(building,3);//TO DO : Gérer le LOD
-                    console.log(geometryBuilder);
-                    let geometricalController = geometryBuilder.getScene(buildingNotSelectedMaterial);
-                    geometricalController.buildDual(dualMaterial, pointsMaterial);
-                    console.log(geometricalController);
-                    controllers.addController(geometricalController);
-                    controllers.changeSelectedController(geometricalController.id);
-                }
-                catch(error){
-                    console.error("Failed to import the building "+building.id+" because of "+error);
-                }
-            })*/
-            
-            
         })
         
         
     }
+    console.log(scene);
 
     //Mock Object import
     const mockList = document.getElementById("mockSelect");

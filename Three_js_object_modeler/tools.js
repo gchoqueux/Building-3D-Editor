@@ -1,7 +1,7 @@
 import * as Utils from './utils/utils';
 import * as GeomUtils from './utils/3DGeometricComputes';
 import * as THREE from 'three';
-import { FacePointMaterial, FlipEdgeMaterial, buildingMaterial, buildingNotSelectedMaterial, buildingPointedMaterial, buildingSelectedMaterial, dualMaterial } from './materials/materials.js';
+import { FacePointMaterial, FlipEdgeMaterial, buildingMaterial, buildingMaterialDebug, buildingNotSelectedMaterial, buildingPointedMaterial, buildingSelectedMaterial, dualMaterial } from './materials/materials.js';
 import { Float32ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 import { ControllersCollection } from './controllers/controllersCollection.js';
 import { CityJSONModelBuilder } from './Builders/ModelBuilder.js';
@@ -190,6 +190,8 @@ class ShiftTool extends Tool{
     onMove(event){
         //console.log("begin onMove");
         if(this.clicked){
+            let faceId = this.selectedFace;
+            let recomputeOriginPoint = this.selectedPoint!=-1 || this.selectedEdge!=-1;
             
             if(this.selectedPoint!=-1){
                 this.selectedFace = this.geometricalControllers.getSelectedController().faceData.count;
@@ -245,9 +247,14 @@ class ShiftTool extends Tool{
                 /*let cx = this.geometricalController.faceData.center[3*faceId];
                 let cy = this.geometricalController.faceData.center[3*faceId+1];
                 let cz = this.geometricalController.faceData.center[3*faceId+2];*/
-                let cx = this.intersectionPoint.x;
-                let cy = this.intersectionPoint.y;
-                let cz = this.intersectionPoint.z;
+                let cx = N(String(this.intersectionPoint.x));
+                let cy = N(String(this.intersectionPoint.y));
+                let cz = N(String(this.intersectionPoint.z));
+                if(recomputeOriginPoint){
+                    cx = N(String(this.geometricalController.faceData.center[3*faceId]));
+                    cy = N(String(this.geometricalController.faceData.center[3*faceId+1]));
+                    cz = N(String(this.geometricalController.faceData.center[3*faceId+2]));
+                }
                 debugInfo["face center"] = [cx,cy,cz];
 
                 let pickingLine = [[N(String(this.camera.position.x)),N(String(this.camera.position.y)),N(String(this.camera.position.z))],[N(String(m.x)),N(String(m.y)),N(String(m.z))]];
@@ -278,6 +285,8 @@ class ShiftTool extends Tool{
                 
 
                 debugInfo["delta"] = delta;
+
+                //console.log(debugInfo);
 
 
                 

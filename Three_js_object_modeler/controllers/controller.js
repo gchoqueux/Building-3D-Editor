@@ -38,9 +38,11 @@ class Controller{
         if(!isCopy){
             isTopologicallyValid(this);
             this.stop = false;
+            this.reorientNormals();
 
             this.sceneBuilder = new SceneBuilder();
             this.labelBuilder = new LabelBuilder();
+
 
             //this.geometricalModel = geometricalModel;
             this.LoD = LoD;
@@ -169,7 +171,6 @@ class Controller{
             let pointsToSplit = [];
             let splittable = true;
             for(let i=0; i<this.pointData.count; i++){
-                //console.log(i);
                 let adjFaces = this.findAdjacentFaces(i);
                 let splitStrat;
                 if(adjFaces.includes(faceId)&&(adjFaces.length==4) && !this.stop){
@@ -360,8 +361,22 @@ class Controller{
         let p1_id = this.halfEdgeData.pIndex[h];
         let p2_id = this.halfEdgeData.pIndex[h_o];
 
-        let p1 = this.computeCoords(p1_id);
-        let p2 = this.computeCoords(p2_id);
+        let p1 = [];
+        let p2 = [];
+        
+        try{
+            p1 = this.computeCoords(p1_id);
+            p2 = this.computeCoords(p2_id);
+        }
+        catch(e){
+            console.log("####DEBUG INFO####");
+            console.log(p1_id,p2_id);
+            console.log(this.copy());
+            console.log(this.findAdjacentFaces(p1_id),this.findAdjacentFaces(p2_id));
+            console.log("##################");
+            console.error(e);
+        }
+        
 
         return Utils.distance(p1,p2);
     }
@@ -676,15 +691,18 @@ class Controller{
         let e1   = this.halfEdgeData.eIndex[h];
         let e2   = this.halfEdgeData.eIndex[h_n];
 
+
         let p1 = this.halfEdgeData.vertex(h);
         let p2 = this.halfEdgeData.vertex(h_n);
 
 
 
-        //change the half-edges pointers
+        //change the half-edges and edges pointers
         this.halfEdgeData.oppIndex[h_o] = h_no;
         this.halfEdgeData.oppIndex[h_no] = h_o;
         this.halfEdgeData.eIndex[h_no] = e1;
+
+        this.edgeData.heIndex[e1] = h_o;
 
         //change the vertices pointers
         
@@ -1196,7 +1214,7 @@ class Controller{
 
 
             this.halfEdgeData.add(p0, n_he+2*(n0-1) , n_he+2*n0-3, newFace_id, n_e);
-
+            this.edgeData.add(halfEdges0[0]);
 
             
             do{
@@ -1229,16 +1247,14 @@ class Controller{
 
                 //creation
                 this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
-                this.halfEdgeData.add(pointsIds0[i], oppId1, nextId1, newFace_id, n_e+i-1);
-                this.halfEdgeData.add(pointsIds0[i], oppId2, nextId2, f_id, n_e+((i)%(n0-1)));
-                
-                //console.log(i);
+                this.halfEdgeData.add(pointsIds0[i], oppId1, nextId1, newFace_id, n_e+i);
+                this.halfEdgeData.add(pointsIds0[i], oppId2, nextId2, f_id, n_e+((i+1)%(n0)));
                 
                 he = he_on;
                 i++;
             }while(he!=h_po)
 
-            console.log(this.halfEdgeData.count);
+            //console.log(this.halfEdgeData.count);
 
 
             //For P1
@@ -1256,7 +1272,7 @@ class Controller{
 
 
             this.halfEdgeData.add(p1, n_he+2*(n1-1) , n_he+2*n1-3, newFace_id, n_e);
-
+            this.edgeData.add(halfEdges1[0]);
 
 
             
@@ -1289,7 +1305,6 @@ class Controller{
                 this.pointData.heIndex[pointsIds1[i]] = [this.halfEdgeData.count];
 
                 //creation
-                this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
                 let e_id1 = n_e+i-2;
                 if(i==1){
                     e_id1 = edgeId;
@@ -1298,7 +1313,8 @@ class Controller{
                     this.edgeData.add(this.halfEdgeData.count, [NaN,NaN,NaN,NaN]);
                 }
                 this.halfEdgeData.add(pointsIds1[i], oppId1, nextId1, newFace_id, e_id1);
-                this.halfEdgeData.add(pointsIds1[i], oppId2, nextId2, f_id, n_e+((i-1)%(n1-2)));
+                this.halfEdgeData.add(pointsIds1[i], oppId2, nextId2, f_id, n_e+((i)%(n1-1)));
+                //console.log(((i-1)%(n1-2)))
                 
                 
                 //console.log(i);
@@ -1310,6 +1326,8 @@ class Controller{
             this.halfEdgeData.oppIndex[h]  = halfEdges1[2];
             this.halfEdgeData.oppIndex[ho] = halfEdges0[2];
 
+            //change ho edge
+            this.halfEdgeData.eIndex[ho] = this.halfEdgeData.eIndex[this.halfEdgeData.opposite(ho)];
 
             //change p0, p1 halfEdge pointer
             this.pointData.heIndex[p0]  = [h];

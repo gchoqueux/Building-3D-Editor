@@ -25,6 +25,7 @@ class PointData{
         this.coords.splice(p_id, 1);
         this.heIndex.splice(p_id, 1);
         this.nbAdjacentFaces.splice(p_id, 1);
+        this.embeddedPlanEquation.splice(p_id,1);
         this.count-=1;
     }
 
@@ -166,7 +167,7 @@ class EdgeData{
         material.uniforms.selectedEdgeId.value = newEdgeIndex;
         material.needsUpdate = true;
     }
-    add(he_id, embeddedPlanEquation=[]){
+    add(he_id, embeddedPlanEquation=[NaN, NaN, NaN, NaN]){
         this.heIndex.push(he_id);
         this.embeddedPlanEquation.push(embeddedPlanEquation);
         this.flipable.push(false);
@@ -175,6 +176,7 @@ class EdgeData{
     delete(e_id){
         this.heIndex.splice(e_id, 1);
         this.flipable.splice(e_id,1);
+        this.embeddedPlanEquation.splice(e_id,1);
         this.count-=1;
     }
     copy(){
