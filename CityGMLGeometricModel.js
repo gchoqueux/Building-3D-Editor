@@ -3,20 +3,22 @@ import * as Utils from './utils/utils'
 import matrix, * as Matrix from "matrix-js"
 import * as THREE from 'three';
 import Earcut from "earcut";
+import { ExactNumber as N } from 'exactnumber/dist/index.umd';
+import { ExactMatrix } from './utils/exactMatrix';
 
 class Point3D{
     static maxId = 0;
     static pointsList = [];
     constructor(x,y,z){
-        this.x=x;
-        this.y=y;
-        this.z=z;
+        this.x=N(String(x));
+        this.y=N(String(y));
+        this.z=N(String(z));
         this.id = Point3D.maxId;
         Point3D.maxId+=1;
         Point3D.pointsList.push(this);
     }
     toString(){
-        return "P3D("+this.x+","+this.y+","+this.z+")";
+        return "P3D("+this.x.toString()+","+this.y.toString()+","+this.z.toString()+")";
     }
 }
 
@@ -25,7 +27,7 @@ class LinearRing{
     constructor(positions){
         this.positions = positions;
         this.size = positions.length;
-        this.planeEquation=[0,0,0,0];
+        this.planeEquation=[N(0),N(0),N(0),N(0)];
         //checkValidity calcul aussi l'equation de plan et la mets à jour
         if(!this.checkValidity()){
             throw new Error("Linear ring not valid");
@@ -95,41 +97,38 @@ class LinearRing{
                     
                     //On réoriente le triangle si il n'est' pas dans le sens trigonométrique.
 
-                    let orientation = Utils.orientation([p1.x, p1.y, p1.z],[p2.x, p2.y, p2.z],[p3.x, p3.y, p3.z]);
+                    /*let orientation = Utils.orientation([p1.x, p1.y, p1.z],[p2.x, p2.y, p2.z],[p3.x, p3.y, p3.z]);
                     if (orientation<0){
                         let mem = p2;
                         p2 = p3;
                         p3 = mem;
-                    }
+                    }*/
                     
                     
                     
-                    let v1 = [p2.x-p1.x,p2.y-p1.y,p2.z-p1.z];
-                    let v2 = [p3.x-p1.x,p3.y-p1.y,p3.z-p1.z];
+                    let v1 = [p2.x.sub(p1.x),p2.y.sub(p1.y),p2.z.sub(p1.z)];
+                    let v2 = [p3.x.sub(p1.x),p3.y.sub(p1.y),p3.z.sub(p1.z)];
                     
                     let alpha = Utils.angle(v1,v2);
-                    if (alpha<=0.1){
+                    if (alpha.eq(N(0))){
                         break;
                     }
                     else{
                         tested = true;
-                        let n = Utils.normalize(Utils.crossProduct(v1,v2));
+                        let n = Utils.crossProduct(v1,v2);
                         let [a,b,c] = n;
                         
-                        let d = -a*p1.x-b*p1.y-c*p1.z;
+                        let d = N(0).sub(a.mul(p1.x)).sub(b.mul(p1.y)).sub(c.mul(p1.z));
 
                         this.planeEquation = [a,b,c,d];
-                        
 
                         this.positions.forEach(p=>{
                             let dist = Utils.distance_Point_Pl([p.x,p.y,p.z], [a,b,c,d]);
-                            if (dist>this.epsilon){
+                            if (dist.gt(N(LinearRing.epsilon))){
                                 return false;
                             }
                         })
-                    }
-
-                    
+                    } 
                 }  
             }    
         }
@@ -200,23 +199,22 @@ class LinearRing{
     computeToHorizontalMatrix(){
         let [a,b,c,d] = this.planeEquation;
         let d2, d1, u,v;
-        if(b!=0){
-            [u,v] = [1, -a/b];
-            d2 = -d/b;
-            d1 = 0;
+        if(!b.isZero()){
+            [u,v] = [N(1), a.neg().div(b)];
+            d2 = d.neg().div(b);
+            d1 = N(0);
         }
         else{
-            [u,v] = [-b/a, 1];
-            d2 = 0;
-            d1 = -d/a;
+            [u,v] = [b.neg().div(a), N(1)];
+            d2 = N(0);
+            d1 = d.neg().div(a);
         }
         
-
-        let Mr = matrix([
-            [u  , u*v,v  , 0],
-            [u*v, v*v,-u , 0],
-            [-v , u  ,0  , 0],
-            [0  , 0  ,0  , 1]
+        let Mr = new ExactMatrix([
+            [u       ,u.mul(v), v      , N(0)],
+            [u.mul(v),v.mul(v), u.neg(), N(0)],
+            [v.neg() ,u       ,N(0)    , N(0)],
+            [N(0)    ,N(0)    ,N(0)    , N(1)]
         ])
         return Mr;
     }
@@ -243,14 +241,13 @@ class Polygon extends Surface{
         this.id = Polygon.maxId;
         Polygon.maxId+=1;
         this.triangulation = [];
-        this.planeEquation = [0,0,0,0];
+        this.planeEquation = [N(0),N(0),N(0),N(0)];
         //check validity mets à jour l'équation de plan
         if(this.checkValidity()){
             this.triangulate();
         }
         else{
             throw new Error("Polygon not valid");
-            //console.error("Polygon not valid");
         }
         
     }
@@ -263,20 +260,28 @@ class Polygon extends Surface{
             valid = valid && interior.checkValidity();
             let plan2 = interior.planeEquation;
 
-
-            if(Utils.distance_Pl_Pl(plan1, plan2)<=Polygon.epsilon){
-                if(plan1[0]*plan2[0]<=0 && plan1[1]*plan2[1]<=0 && plan1[2]*plan2[2]<=0 && plan1[3]*plan2[3]<=0){
+            console.log(Utils.distance_Pl_Pl(plan1, plan2).toNumber(), Utils.distance_Pl_Pl(plan1, plan2).lte(N(Polygon.epsilon)))
+            if(Utils.distance_Pl_Pl(plan1, plan2).lte(N(Polygon.epsilon))){
+                if(plan1[0].mul(plan2[0]).lt(N(0)) && plan1[1].mul(plan2[1]).lt(N(0)) && plan1[2].mul(plan2[2]).lt(N(0)) && plan1[3].mul(plan2[3]).lt(N(0))){
                     for(let i=0; i<=3; i++){
-                        plan2[i]*=-1;
+                        plan2[i].neg();
                     }
                 }
-                this.planeEquation = [(plan1[0]+plan2[0])/2, (plan1[1]+plan2[1])/2,(plan1[2]+plan2[2])/2,(plan1[3]+plan2[3])/2]
+                this.planeEquation = [plan1[0].add(plan2[0]).div(N(2)), plan1[1].add(plan2[1]).div(N(2)),plan1[2].add(plan2[2]).div(N(2)),plan1[3].add(plan2[3]).div(N(2))]
                 valid = true;
             }
             else{
                 valid = false;
             }
         })
+        /*
+        if(valid){
+            let normal = this.planeEquation.slice(0,3);
+            let d = this.planeEquation[3];
+            let n = Utils.norme(normal);
+            normal = Utils.normalize(normal);
+            this.planeEquation = [...normal, d.div(n)];
+        }*/
         
         return valid;
     }
@@ -290,7 +295,7 @@ class Polygon extends Surface{
 
         let pointsCoordinates = [];
         points.forEach(point3D=>{
-            pointsCoordinates = pointsCoordinates.concat([point3D.x, point3D.y, point3D.z]);
+            pointsCoordinates = pointsCoordinates.concat([point3D.x.toNumber(), point3D.y.toNumber(), point3D.z.toNumber()]);
         })
         
         let holes=[];
@@ -300,18 +305,18 @@ class Polygon extends Surface{
             hole_index+=interior.size;
         })
         
-        if(this.planeEquation[2]!=0){  
+        if(!this.planeEquation[2].isZero()){  
             this.triangulation = Earcut(pointsCoordinates, holes, 3);
         }
         //Si la face est verticale, il faut la rendre horizontale
         else{
             let M = this.computeToHorizontalMatrix();
             for(let i=0; i<pointsCoordinates.length/3; i++){
-                let pt = matrix([[pointsCoordinates[3*i]], [pointsCoordinates[3*i+1]], [pointsCoordinates[3*i+2]],[1]]);
-                let h_pt = matrix(M.prod(pt));
-                pointsCoordinates[3*i    ] = h_pt(0,0);
-                pointsCoordinates[3*i + 1] = h_pt(1,0);
-                pointsCoordinates[3*i + 2] = h_pt(2,0);
+                let pt = new ExactMatrix([[pointsCoordinates[3*i]], [pointsCoordinates[3*i+1]], [pointsCoordinates[3*i+2]],[1]]);
+                let h_pt = M.prod(pt);
+                pointsCoordinates[3*i    ] = h_pt[0][0].toNumber();
+                pointsCoordinates[3*i + 1] = h_pt[1][0].toNumber();
+                pointsCoordinates[3*i + 2] = h_pt[2][0].toNumber();
             }
             this.triangulation = Earcut(pointsCoordinates, holes, 3);
         }
@@ -393,23 +398,22 @@ class Polygon extends Surface{
     computeToHorizontalMatrix(){
         let [a,b,c,d] = this.planeEquation;
         let d2, d1, u,v;
-        if(b!=0){
-            [u,v] = [1, -a/b];
-            d2 = -d/b;
-            d1 = 0;
+        if(!b.isZero()){
+            [u,v] = [N(1), a.neg().div(b)];
+            d2 = d.neg().div(b);
+            d1 = N(0);
         }
         else{
-            [u,v] = [-b/a, 1];
-            d2 = 0;
-            d1 = -d/a;
+            [u,v] = [b.neg().div(a), N(1)];
+            d2 = N(0);
+            d1 = d.neg().div(a);
         }
         
-
-        let Mr = matrix([
-            [u  , u*v,v  , 0],
-            [u*v, v*v,-u , 0],
-            [-v , u  ,0  , 0],
-            [0  , 0  ,0  , 1]
+        let Mr = new ExactMatrix([
+            [u       , u.mul(v), v      , N(0)],
+            [u.mul(v), v.mul(v), u.neg(), N(0)],
+            [v.neg() , u       ,N(0)    , N(0)],
+            [N(0)    , N(0)    ,N(0)    , N(1)]
         ])
         return Mr;
     }
@@ -441,10 +445,10 @@ class Polygon extends Surface{
 
     }
     invertPlaneEquation(){
-        this.planeEquation[0]*=-1;
-        this.planeEquation[1]*=-1;
-        this.planeEquation[2]*=-1;
-        this.planeEquation[3]*=-1;
+        this.planeEquation[0].neg();
+        this.planeEquation[1].neg();
+        this.planeEquation[2].neg();
+        this.planeEquation[3].neg();
 
         this.exterior.planeEquation = this.planeEquation;
         this.interior.planeEquation = this.planeEquation;

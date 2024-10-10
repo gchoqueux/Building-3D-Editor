@@ -141,7 +141,7 @@ class CityJSONModelBuilder extends ModelBuilder{
                                 else{
                                     bp_points_indices.push(p_index);
                                     let [x,y,z] = cityJSONObject.vertices[p_index];
-                                    console.log(Point3D.maxId,x, y, z );
+                                    //console.log(Point3D.maxId,x, y, z );
                                     let new_point3D = new Point3D(x,y,z);
                                     bp_points.push(new_point3D);
                                     exteriorPointsList.push(new_point3D);

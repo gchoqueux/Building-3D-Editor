@@ -7,6 +7,8 @@ import Earcut from "earcut";
 import * as GeomUtils from '../utils/3DGeometricComputes';
 import {GeometryBuilder} from "./GeometryBuilders";
 import {ModelBuilder, MockModelBuilder, CityJSONModelBuilder} from "./ModelBuilder"
+import { LabelBuilder } from "./labelBuilder";
+import { ExactNumber as N } from "exactnumber/dist/index.umd";
 
 class SceneBuilder{
     constructor(){
@@ -17,6 +19,7 @@ class SceneBuilder{
         this.computeTriangulation(geometricalController);
         this.vertex_data = {'position':[], 'normal':[], 'uv':[], 'fIndex':[], 'pIndex':[], /*'objIndex':[],*/ 'faceBorder':[]}
         for(let i=0; i<this.triangleData.count; i++){
+            //console.log(String(i)+"/"+String(this.triangleData.count));
             let p1_id = this.triangleData.pIndex[3*i];
             let p2_id = this.triangleData.pIndex[3*i+1];
             let p3_id = this.triangleData.pIndex[3*i+2];
@@ -25,7 +28,6 @@ class SceneBuilder{
             let p1 = geometricalController.computeCoords(p1_id);
             let p2 = geometricalController.computeCoords(p2_id);
             let p3 = geometricalController.computeCoords(p3_id);
-
 
             
             this.vertex_data.position.push(...p1);
@@ -37,8 +39,11 @@ class SceneBuilder{
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
             //this.vertex_data.objIndex.push(objId,objId,objId);
 
-            let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
-            
+            let normal = geometricalController.faceData.planeEquation[faceId].slice(0,3);
+            normal[0] = normal[0].toNumber();
+            normal[1] = normal[1].toNumber();
+            normal[2] = normal[2].toNumber();
+            //console.log(geometricalController.faceData.planeEquation[faceId],normal)
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
@@ -100,7 +105,12 @@ class SceneBuilder{
             this.vertex_data.fIndex.push(faceId,faceId,faceId);
             //this.vertex_data.objIndex.push(objId,objId,objId);
 
-            let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
+            //let normal = Utils.normalize(geometricalController.faceData.planeEquation[faceId].slice(0,3));
+            let normal = geometricalController.faceData.planeEquation[faceId].slice(0,3);
+            normal[0] = normal[0].toNumber();
+            normal[1] = normal[1].toNumber();
+            normal[2] = normal[2].toNumber();
+            //console.log(geometricalController.faceData.planeEquation[faceId],normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
             this.vertex_data.normal.push(...normal);
@@ -205,7 +215,7 @@ class SceneBuilder{
         let triangulation;
 
         
-        if(planeEquation[2]!=0){  
+        if(!planeEquation[2].isZero()){  
             triangulation = Earcut(pointsCoordinates, holes, 3);
         }
         //Si la face est verticale, il faut la rendre horizontale
@@ -280,7 +290,7 @@ class DualBuilder{
             this.face_data.hExtIndex.push([h_id]);
             this.face_data.hIntIndices.push([]);
             let [x,y,z] = geometricalController.computeCoords(i);
-            this.face_data.planeEquation.push([x,y,z,1]);
+            this.face_data.planeEquation.push([N(String(x)),N(String(y)),N(String(z)),N(1)]);
         }
         //console.log("before arrity");
         //computes the number of faces adjacent to the points
@@ -331,4 +341,4 @@ class DualBuilder{
     }
 }
 
-export {ModelBuilder, GeometryBuilder,SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder}
+export {LabelBuilder, ModelBuilder, GeometryBuilder,SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder}

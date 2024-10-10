@@ -43,14 +43,19 @@ class MockObjectLoader extends Loader{
         buildingsModel.forEach(building=>{
             geometryBuilder.build(building, 3);
             let geometricalController = geometryBuilder.getScene(buildingMaterial);
-            geometricalController.buildDual(dualMaterial, pointsMaterial);
-            controllers.addController(geometricalController);
-            controllers.changeSelectedController(geometricalController.id);
+            if(geometricalController){
+                geometricalController.buildDual(dualMaterial, pointsMaterial);
+                controllers.addController(geometricalController);
+                controllers.changeSelectedController(geometricalController.id);
+            }
         })
         
-        //Pour le debug graphique
-        buildingMaterialDebug.uniforms.maxPointId.value = controllers.getSelectedController().pointData.count;
-        buildingMaterialDebug.uniforms.maxFaceId.value = controllers.getSelectedController().faceData.count;
+        if(controllers.getSelectedController()){
+            //Pour le debug graphique
+            buildingMaterialDebug.uniforms.maxPointId.value = controllers.getSelectedController().pointData.count;
+            buildingMaterialDebug.uniforms.maxFaceId.value = controllers.getSelectedController().faceData.count;
+        }
+        
     }
 }
 

@@ -4,10 +4,10 @@ import { PointData, FaceData, HalfEdgeData, EdgeData } from "../GeometricalProxy
 import { Building, BuildingPart, ClosureSurface, WallSurface, FloorSurface, OuterFloorSurface, GroundSurface, RoofSurface } from "../CityGMLLogicalModel";
 import { Controller, DualController } from "../controllers/controller";
 import * as Utils from '../utils/utils';
-import matrix from 'matrix-js';
-import Earcut from "earcut";
-import * as GeomUtils from '../utils/3DGeometricComputes';
-import { embeddings } from "../GeometricalEmbedding";
+import { Heap } from 'heap-js';
+import { ExactNumber as N } from "exactnumber/dist/index.umd";
+import { ExactMatrix } from "../utils/exactMatrix";
+
 
 
 class GeometryBuilder{
@@ -150,7 +150,6 @@ class GeometryBuilder{
         }
 
         //console.log("face arrity computed");
-
         
 
         this.face_data_object     = new FaceData(this.face_data.planeEquation,this.face_data.hExtIndex, this.face_data.hIntIndices);
@@ -161,15 +160,195 @@ class GeometryBuilder{
     }
 
     /**
+     * Tries to correct the plans of the model such that it 
+     * correspond to the geometry. 
+     * @param {Controller} controller 
+     */
+    correctPlans(controller){
+        PriorityFace.instances = [];
+        PriorityFace.constraints = new Array(controller.pointData.count);
+        for(let i=0; i<PriorityFace.constraints.length; i++){
+            PriorityFace.constraints[i] = [];
+        }
+        
+        const customPriorityComparator = (a, b) => b.priority - a.priority;
+        const facesQueue = new Heap(customPriorityComparator);
+        facesQueue.init([]);
+        for(let i=0; i<this.face_data_object.count;i++){
+            
+            let borders = controller.getFaceBorders(i);
+            let points = borders[0];
+            borders[1].forEach(interior=>{
+                points.push(...interior);
+            });
+            let priorityFace = new PriorityFace(i,points);
+            facesQueue.push(priorityFace);
+        }
+
+        while(!facesQueue.isEmpty()){
+            console.log(PriorityFace.toString());
+            let face = facesQueue.pop();
+            let fixedPoints = face.getFixedPoints();
+            if(fixedPoints.length>1){
+                let d4;
+                console.log("face "+face.id+" position constrained by points "+String(fixedPoints));
+
+                for(let i=0; i<fixedPoints.length; i++){
+                    let p_id = fixedPoints[i];
+                    
+                    let plans = PriorityFace.constraints[p_id].slice(0,3);
+                    let equations = [];
+                    plans.forEach(plan=>{
+                        equations.push([...controller.faceData.planeEquation[plan]]);
+                    })
+                    equations.push([...controller.faceData.planeEquation[face.id]]);
+                    let values1 = [[...equations[1].slice(0,3)],[...equations[2].slice(0,3)],[...equations[3].slice(0,3)]];
+                    let values2 = [[...equations[0].slice(0,3)],[...equations[2].slice(0,3)],[...equations[3].slice(0,3)]];
+                    let values3 = [[...equations[0].slice(0,3)],[...equations[1].slice(0,3)],[...equations[3].slice(0,3)]];
+                    let values4 = [[...equations[0].slice(0,3)],[...equations[1].slice(0,3)],[...equations[2].slice(0,3)]];
+
+                    let d1 = equations[0][3];
+                    let d2 = equations[1][3];
+                    let d3 = equations[2][3];
+                    if(typeof(d1)=="number"){
+                        d1 = N(d1);
+                    }
+                    if(typeof(d2)=="number"){
+                        d2 = N(d2);
+                    }
+                    if(typeof(d3)=="number"){
+                        d3 = N(d3);
+                    }
+
+                    let A1 = (new ExactMatrix(values1)).det();
+                    let A2 = (new ExactMatrix(values2)).det();
+                    let A3 = (new ExactMatrix(values3)).det();
+                    let A4 = (new ExactMatrix(values4)).det();
+                    let d4_i = d1.mul(A1).sub(d2.mul(A2)).add(d3.mul(A3)).div(A4);//(d1*A1-d2*A2+d3*A3)/A4
+                    if(d4){
+                        if(!d4.eq(d4_i)){
+                            throw new Error("Correction impossible, to many constraint on a face.");
+                        }
+                    }
+                    else{
+                        d4 = d4_i;
+                    }
+                }
+                controller.faceData.planeEquation[face.id][3]=d4;
+
+                
+            }
+            else if(fixedPoints.length==1){
+                let p_id = fixedPoints[0];
+                console.log("face "+face.id+" position constrained by point "+p_id);
+                let plans = PriorityFace.constraints[p_id].slice(0,3);
+                let equations = [];
+                plans.forEach(plan=>{
+                    equations.push([...controller.faceData.planeEquation[plan]]);
+                })
+                equations.push([...controller.faceData.planeEquation[face.id]]);
+                let values1 = [[...equations[1].slice(0,3)],[...equations[2].slice(0,3)],[...equations[3].slice(0,3)]];
+                let values2 = [[...equations[0].slice(0,3)],[...equations[2].slice(0,3)],[...equations[3].slice(0,3)]];
+                let values3 = [[...equations[0].slice(0,3)],[...equations[1].slice(0,3)],[...equations[3].slice(0,3)]];
+                let values4 = [[...equations[0].slice(0,3)],[...equations[1].slice(0,3)],[...equations[2].slice(0,3)]];
+
+                let d1 = equations[0][3];
+                let d2 = equations[1][3];
+                let d3 = equations[2][3];
+                if(typeof(d1)=="number"){
+                    d1 = N(d1);
+                }
+                if(typeof(d2)=="number"){
+                    d2 = N(d2);
+                }
+                if(typeof(d3)=="number"){
+                    d3 = N(d3);
+                }
+
+                let A1 = (new ExactMatrix(values1)).det();
+                let A2 = (new ExactMatrix(values2)).det();
+                let A3 = (new ExactMatrix(values3)).det();
+                let A4 = (new ExactMatrix(values4)).det();
+
+                let d4 = d1.mul(A1).sub(d2.mul(A2)).add(d3.mul(A3)).div(A4);//(d1*A1-d2*A2+d3*A3)/A4
+                controller.faceData.planeEquation[face.id][3]=d4;
+
+            }
+
+            face.points_id.forEach(p_id=>{
+                PriorityFace.constraints[p_id].push(face.id);
+            })
+            PriorityFace.updatePriorities();
+
+        }
+        
+    }
+
+    /**
      * 
      * @returns A Controller object corresponding to this scene.
      */
     getScene(material){
-        return (new Controller(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material));
+        let c;
+        /*try{*/
+            c = new Controller(this.face_data_object, this.point_data_object, this.halfedge_data_object, this.edge_data_object, this.LoD, material);
+            this.correctPlans(c);
+            c.onChange();
+            return (c);
+        /*}
+        catch(error){
+            console.error("Building could not be imported due to "+error);
+            return (undefined);
+        }*/
+        
     }
 
 }
 
+class PriorityFace{
+    instances = [];
+    constraints = [];
+    
+    constructor(f_id, points){
+        this.priority = 0;
+        this.id = f_id;
+        this.points_id = points;
+
+        PriorityFace.instances.push(this);
+    }
+    static updatePriorities(){
+        PriorityFace.instances.forEach(instance=>{
+            let prio=0; 
+            instance.points_id.forEach(p_id=>{
+                if(PriorityFace.constraints[p_id].length>=3){
+                    prio+=1;
+                }
+            })
+            instance.priority = prio;
+        })
+    }
+
+    getFixedPoints(){
+        let fixedPoints = [];
+        this.points_id.forEach(p_id=>{
+            if(PriorityFace.constraints[p_id].length>=3){
+                fixedPoints.push(p_id);
+            }
+        })
+        return fixedPoints;
+    }
+
+    static toString(){
+        let s = "-".repeat(12)+"\n";
+        for(let i=0; i<PriorityFace.constraints.length; i++){
+            s+=String(i)+" : "+String(PriorityFace.constraints[i].length);
+            s+=",    ["+String(PriorityFace.constraints[i])+"]\n";
+        }
+        s += "-".repeat(12);
+        return s;
+    }
+    
+}
 
 
 

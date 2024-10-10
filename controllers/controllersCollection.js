@@ -31,7 +31,7 @@ class ControllersCollection{
         if(this.selectedController != -1){
             this.dualScene.remove(this.controllers[this.selectedController].dualController.vertexData);
             this.dualScene.remove(this.controllers[this.selectedController].dualController.dualPoints);
-
+            this.scene.remove(this.controllers[this.selectedController].labelData);
             this.controllers[this.selectedController].vertexData.material = buildingNotSelectedMaterial;
             this.selectedController = -1;
         }
@@ -39,7 +39,8 @@ class ControllersCollection{
             if(this.controllers[i].id==controllerId){
                 this.selectedController = i;
                 this.dualScene.add(this.controllers[i].dualController.vertexData);
-                this.dualScene.add(this.controllers[i].dualController.dualPoints)
+                this.dualScene.add(this.controllers[i].dualController.dualPoints);
+                this.scene.add(this.controllers[this.selectedController].labelData);
                 
                 this.controllers[this.selectedController].vertexData.material = this.selectedMaterial;
                 //Pour la couleur des faces
@@ -65,6 +66,8 @@ class ControllersCollection{
     addController(controller){
         this.controllers.push(controller);
         this.scene.add(controller.vertexData);
+        this.scene.add(controller.labelData);
+        //console.log(controller.vertexData);
     }
 
     removeController(controllerId){
