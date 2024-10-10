@@ -12,7 +12,7 @@ function norme(v){
     v.forEach(c=>{
         s=s.add(c.mul(c));
     })
-    return sqrt(s,6);
+    return N(String(Math.sqrt(s.toNumber())));
 }
 
 function min(vec1, vec2){
@@ -71,7 +71,7 @@ function crossProduct(v1,v2){
 
 function normalize(v){
     let [a,b,c] = v;
-    let length = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toString(),10);
+    let length = N(String(Math.sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)).toNumber())));
     return [a.div(length), b.div(length), c.div(length)];
 }
 
@@ -88,7 +88,7 @@ function angle(v1, v2){
     let b_num = [b[0].toNumber(),b[1].toNumber(),b[2].toNumber()];
     console.log(a_num, b_num);*/
     //console.log(dotProduct(a,b).toNumber());
-    return N(acos(dotProduct(a,b).clamp(N(0),N(1)),6));
+    return N(acos(dotProduct(a,b).clamp(N(-1),N(1)),6));
 }
 
 function distance(p1,p2){
@@ -142,9 +142,17 @@ function distance_Pl_Pl(plan1, plan2){
 
     let alpha = angle(n1,n2);
 
-    return (N.min(alpha, (alpha.sub(PI)).abs()));
+    return (N.min(alpha, (alpha.sub(PI(10))).abs()));
     
 
+}
+
+function exactV_to_floatV(v){
+    let fv = [];
+    v.forEach(c=>{
+        fv.push(c.toNumber());
+    })
+    return fv;
 }
 
 
@@ -154,10 +162,19 @@ function distance_Point_Pl(point, plan){
     
     let [x,y,z]=point;
     let [a,b,c,d]=plan;
+    //console.log(a.toNumber(),b.toNumber(),c.toNumber(),d.toNumber());
     let num = a.mul(x).add(b.mul(y)).add(c.mul(z)).add(d).abs();
-    let den = sqrt(a.mul(a).add(b.mul(b)).add(c.mul(c)),6);
+    let den = a.mul(a).add(b.mul(b)).add(c.mul(c));
+    //den = N(String(Math.sqrt(den.toNumber())))
+    let res= num.mul(num).div(den);
+    /*if(!den.isZero()){
+        res = num.div(den);
+    }
+    else{
+        res = Infinity;
+    }*/
 
-    return (num.div(den));
+    return (res);
     
 
 }
@@ -305,6 +322,72 @@ function mergeListsWithoutDoubles(...lists){
     })
     return res;
 }
+
+/**
+ * 
+ * @param {Array} l1 
+ * @param {Array} l2 
+ * @returns 
+ */
+function homogeneousMergeWithoutDoubles(l1,l2){
+    let res = [];
+    
+    let [i1,i2]=[0,0];
+    let l2_without_l1 = [];
+    let l2_union_l1 = [];
+
+    l2.forEach(el=>{
+        if(l1.indexOf(el)==-1){
+            l2_without_l1.push(el);
+        }
+        else{
+            l2_union_l1.push(el);
+        }
+    })
+
+    l2 = l2_without_l1.concat(l2_union_l1);
+
+
+
+
+    let l1_without_l2 = [];
+    let l1_union_l2 = [];
+
+    l1.forEach(el=>{
+        if(l2.indexOf(el)==-1){
+            l1_without_l2.push(el);
+        }
+        else{
+            l1_union_l2.push(el);
+        }
+    })
+
+    l1 = l1_without_l2.concat(l1_union_l2);
+    
+    while(i1<l1_without_l2.length ||i2<l2_without_l1.length){
+        while(i1<l1_without_l2.length&&res.indexOf(l1_without_l2[i1])!=-1){
+            i1++;
+        }
+        if(i1<l1_without_l2.length){
+            res.push(l1_without_l2[i1]);
+            i1++;
+        }
+
+        while(i2<l2_without_l1.length&&res.indexOf(l2_without_l1[i2])!=-1){
+            i2++;
+        }
+        if(i2<l2_without_l1.length){
+            res.push(l2_without_l1[i2]);
+            i2++;
+        }
+    }
+
+
+    res = res.concat(l1_union_l2);
+    return res;
+}
+
+
 
 function indexOf(e, l){
     if(e.length){
@@ -468,4 +551,4 @@ function computeBBOX_CityJson(cityJsonData){
 
 
 
-export{computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}
+export{homogeneousMergeWithoutDoubles,computeBBOX_CityJson, translateCityJSONObject, translateThreeObject, computeCenter_CityJson, findElement, isSubArray, removeElements, getCommonElts, mergeListsWithoutDoublesV2, mergeListsWithoutDoubles, nbCommonElts, norme, getPlanEquation2, computeIntersection, orientation, min, max, computeDirection, meanVectors, crossProduct, normalize, distance, distance_Tr_Pl, distance_Point_Pl, distance_Tr_Tr, distance_Pl_Pl, getPlanEquation, equals_vec, dotProduct, angle}

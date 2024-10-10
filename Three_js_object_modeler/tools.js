@@ -237,6 +237,7 @@ class ShiftTool extends Tool{
                     console.log(faceId,this.geometricalControllers.getSelectedController().faceData.planeEquation[faceId]);
                     throw e;
                 }
+                let norme = Utils.norme(n);
                 n = Utils.normalize(n);
 
                 debugInfo["normale"] = n;
@@ -273,6 +274,7 @@ class ShiftTool extends Tool{
                 if(orientation.lt(N(0))){
                     delta = delta.neg();
                 }
+                delta = delta.mul(norme);
                 
 
                 debugInfo["delta"] = delta;
@@ -281,23 +283,29 @@ class ShiftTool extends Tool{
                 
                 //console.log("before shift");
 
-                let faceDeleted = this.geometricalControllers.getSelectedController().faceShift2(faceId, delta.sub(this.globalDelta));
+                let faceDeleted = this.geometricalControllers.getSelectedController().faceShift(faceId, delta.sub(this.globalDelta));
                 //console.log("before onChange");
                 this.geometricalControllers.getSelectedController().onChange();
                 //this.lastPicked.copy(pickedPoint);
                 this.globalDelta = delta;
-                if(faceDeleted==faceId){
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().material);
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.faceVerticesMaterial);
-                    this.selectedFace=-1;
+                for(let i=0; i<faceDeleted.length; i++){
+                    let face = faceDeleted[i]-i;
+                    if(face==faceId){
+                        console.log("Deselect face");
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().material);
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(-1, this.faceVerticesMaterial);
+                        this.selectedFace=-1;
+                        break;
+                    }
+                    else if(faceId>face){
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().material);
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
+                        this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.faceVerticesMaterial);
+                        this.selectedFace-=1;
+                    }
                 }
-                else if(faceId>faceDeleted){
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().material);
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.geometricalControllers.getSelectedController().dualController.pointMaterial);
-                    this.geometricalControllers.getSelectedController().changeSelectedFace(faceId-1, this.faceVerticesMaterial);
-                    this.selectedFace-=1;
-                }
+                
 
                 //this.geometricalController.updateScene();
 

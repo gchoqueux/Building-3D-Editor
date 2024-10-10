@@ -7,6 +7,7 @@ import Earcut from "earcut";
 import * as GeomUtils from '../utils/3DGeometricComputes';
 import {GeometryBuilder} from "./GeometryBuilders";
 import {ModelBuilder, MockModelBuilder, CityJSONModelBuilder} from "./ModelBuilder"
+import { LabelBuilder } from "./labelBuilder";
 import { ExactNumber as N } from "exactnumber/dist/index.umd";
 
 class SceneBuilder{
@@ -332,4 +333,4 @@ class DualBuilder{
     }
 }
 
-export {ModelBuilder, GeometryBuilder,SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder}
+export {LabelBuilder, ModelBuilder, GeometryBuilder,SceneBuilder, DualBuilder, MockModelBuilder, CityJSONModelBuilder}

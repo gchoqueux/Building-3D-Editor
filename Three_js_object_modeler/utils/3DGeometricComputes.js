@@ -3,6 +3,7 @@ import * as Utils from './utils';
 import { normalize } from "three/src/math/MathUtils";
 import Earcut from "earcut";
 import { ExactNumber as N } from "exactnumber/dist/index.umd";
+import { ExactMatrix } from "./exactMatrix";
 
 
 function crossMatrix(v){
@@ -108,6 +109,72 @@ function computeShiftTValidity(planMobile, plan1, plan2, plan3){
 
     let num = ((a_1.mul(b_2).sub(a_2.mul(b_1))).mul(c_3).add((a_3.mul(b_1).sub(a_1.mul(b_3))).mul(c_2)).add((a_2.mul(b_3).sub(a_3.mul(b_2))).mul(c_1)).mul(d_4)).add(((a_2.mul(b_1).sub(a_1.mul(b_2))).mul(c_4)).add((a_1.mul(b_4).sub(a_4.mul(b_1))).mul(c_2)).add((a_4.mul(b_2).sub(a_2.mul(b_4))).mul(c_1)).mul(d_3)).add(((a_1.mul(b_3).sub(a_3.mul(b_1))).mul(c_4)).add((a_4.mul(b_1).sub(a_1.mul(b_4))).mul(c_3)).add((a_3.mul(b_4).sub(a_4.mul(b_3))).mul(c_1)).mul(d_2)).add(((a_3.mul(b_2).sub(a_2.mul(b_3))).mul(c_4)).add((a_2.mul(b_4).sub(a_4.mul(b_2))).mul(c_3)).add((a_4.mul(b_3).sub(a_3.mul(b_4))).mul(c_2)).mul(d_1));
     let den = ((a_1.mul(b_2).sub(a_2.mul(b_1))).mul(c_3).add((a_3.mul(b_1).sub(a_1.mul(b_3))).mul(c_2)).add((a_2.mul(b_3).sub(a_3.mul(b_2))).mul(c_1)));
+    let t=N(0);
+
+    //console.log(num, den);
+    if (den.isZero()){
+        if(num.gt(N(0))){
+            t=Infinity;
+        }
+        else{
+            t=-Infinity;
+        }
+    }
+    else{
+        t = num.div(den);
+    }
+     
+    return t;
+
+}
+
+
+/**
+ * Computes the value of t (t being the value of the mobile plan shift)
+ * for which the mobile plan passes by the point defined 
+ * as the intersection of the plans 1,2 and 3. 
+ * @param {Array} planMobile Equation de plan du plan mobile 
+ * @param {Array} plan1 Equation de plan du plan fixe 1
+ * @param {Array} plan2 Equation de plan du plan fixe 2
+ * @param {Array} plan3 Equation de plan du plan fixe 3
+ */
+function computeTCollision(planMobile, plan1, plan2, plan3, printM = false){
+    let [a_m,b_m,c_m,d_m] = planMobile;
+    let [a_1,b_1,c_1,d_1] = plan1;
+    let [a_2,b_2,c_2,d_2] = plan2;
+    let [a_3,b_3,c_3,d_3] = plan3;
+
+    let values1 = [[a_2,b_2,c_2],[a_3,b_3,c_3],[a_m,b_m,c_m]];
+    let values2 = [[a_1,b_1,c_1],[a_3,b_3,c_3],[a_m,b_m,c_m]];
+    let values3 = [[a_1,b_1,c_1],[a_2,b_2,c_2],[a_m,b_m,c_m]];
+    let values4 = [[a_1,b_1,c_1],[a_2,b_2,c_2],[a_3,b_3,c_3]];
+
+    let M1 = new ExactMatrix(values1);
+    let M2 = new ExactMatrix(values2);
+    let M3 = new ExactMatrix(values3);
+    let M4 = new ExactMatrix(values4);
+    
+
+    let A1 = M1.det();
+    let A2 = M2.det();
+    let A3 = M3.det();
+    let A4 = M4.det();
+
+    if(printM){
+        let values = [[a_1,b_1,c_1,d_1],[a_2,b_2,c_2,d_2],[a_3,b_3,c_3,d_3],[a_m,b_m,c_m,d_m]];
+        new ExactMatrix(values).print();
+        console.log(A1.toNumber(),d_1.toNumber());
+        M1.print();
+        console.log(A2.toNumber(),d_2.toNumber());
+        M2.print();
+        console.log(A3.toNumber(),d_3.toNumber());
+        M3.print();
+        console.log(A4.toNumber());
+        M4.print();
+    }
+
+    let num = d_1.neg().mul(A1).add(d_2.mul(A2)).sub(d_3.mul(A3)).add(d_m.mul(A4));
+    let den = A4;
     let t=N(0);
 
     //console.log(num, den);
@@ -433,4 +500,4 @@ function reorganize(A, D, step){
 
 
 
-export {computeIntersectionPoint2, intersects, checkAutoIntersectionWithLogs, computeToHorizontalMatrix, checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}
+export {computeTCollision, computeIntersectionPoint2, intersects, checkAutoIntersectionWithLogs, computeToHorizontalMatrix, checkAutoIntersection, triangulate, computeShiftTValidity,findClosestPointToNLines,projectPointOnLine,computeIntersectionPoint}
