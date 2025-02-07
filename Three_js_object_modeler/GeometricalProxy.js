@@ -1,3 +1,6 @@
+
+// Pourquoi ne pas utiliser la structure de THREE.js??
+// pourquoi les données arrive deja formater dans le constructeur?
 class PointData{
     constructor(points3D, heIndex, nbAdjacentFaces){
         //topological model

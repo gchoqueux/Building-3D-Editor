@@ -17,6 +17,10 @@ import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 import * as ExactMathUtils from '../utils/exactMathUtils';
 import { ExactMatrix } from '../utils/exactMatrix';
 
+
+// ne devrait pas avoir de Data
+// la responsabilité de certaine fonction
+// ce fichier est à approfondir
 class Controller{
     static epsilon = N(0);
     static maxId = 0;
@@ -27,6 +31,7 @@ class Controller{
         this.pointData    = pointData;
         this.halfEdgeData = halfEdgeData;
         this.edgeData     = edgeData;
+        // devrait etre separer
         this.dualController = null;
         this.dualBuilder = new DualBuilder(embeddings["Trivial"]);
         this.isCopy = isCopy;
@@ -161,7 +166,7 @@ class Controller{
     }
 
 
-
+    // une partie de code devrait etre une class Face ou Plane
     faceShift(faceId, delta){
         console.log("========= Moving face "+String(faceId)+" ===========");
         let faceDeleted = [];
@@ -355,6 +360,7 @@ class Controller{
         return (m.rank(print)==3);
     }
 
+    // à mettre dans edge
     edgeLength(e_id){
         let h = this.edgeData.heIndex[e_id];
         let h_o = this.halfEdgeData.opposite(h);

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 
 
-
+// utiliser des chuncks
 let vShader_buildingDebug = `
     varying vec3 vViewPosition;
     attribute float fIndex;

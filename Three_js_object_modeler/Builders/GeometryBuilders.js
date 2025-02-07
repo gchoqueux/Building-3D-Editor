@@ -10,8 +10,12 @@ import { ExactMatrix } from "../utils/exactMatrix";
 
 
 
+// est il possible ce separer les process de build par type (point, halfEdge, edge, face, )
+// pourquoi edge et halfEdge
 class GeometryBuilder{
     constructor(){
+        // pourquoi les données sont stoker dans le builder
+        // quel difference entre data et data_object
         this.face_data            = {};
         this.point_data           = {};
         this.halfedge_data        = {};
@@ -19,7 +23,10 @@ class GeometryBuilder{
         this.face_data_object     = {};
         this.point_data_object    = {};
         this.GMLModel     = {};
-    } 
+    }
+
+    // building est la sctructure intermediaire ?
+    // il y a un interet d'avoir cette intermédiaire ?
     build(building, LoD){
         let minPointId = building.minPointId;
         let maxPointId = building.maxPointId;
@@ -27,6 +34,7 @@ class GeometryBuilder{
         let maxFaceId = building.maxFaceId;
         let nPts = maxPointId-minPointId+1;
         let nFaces = maxFaceId-minFaceId+1;
+        // la structure de donneés devrait etre mis dans des classes
         this.face_data        = {'hExtIndex': new Array(nFaces), 'hIntIndices':new Array(nFaces),'planeEquation':new Array(nFaces)};
         this.point_data       = {'heIndex' : new Array(nPts),'nbAdjacentFaces': new Array(nPts), 'coords':new Array(nPts)};
         this.halfedge_data    = {'fIndex':[],'pIndex' : [], 'oppIndex' : [], 'nextIndex' : [], 'eIndex':[]};

@@ -6,8 +6,13 @@ import Earcut from "earcut";
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 import { ExactMatrix } from './utils/exactMatrix';
 
+// trouver les responsabiliter
+// Données, fonctions metier Math
+
+// pourquoi ne pas utiliser three.vector3
 class Point3D{
     static maxId = 0;
+    // un point 3d ne doit pas gerer une liste point3d
     static pointsList = [];
     constructor(x,y,z){
         this.x=N(String(x));
@@ -285,6 +290,7 @@ class Polygon extends Surface{
         
         return valid;
     }
+    // pour faire du THREE.js, si oui ne devrait pas etre ici
     triangulate(){
         let points = this.exterior.positions;
         this.interiors.forEach(interior=>{
@@ -425,6 +431,7 @@ class Polygon extends Surface{
      * @param {Array} vector 
      * @returns 
      */
+    // deplacer vers un intersector
     intersectRay(point, vector){
         let [a,b,c,d] = this.planeEquation;
         let [x_p,y_p,z_p] = point;

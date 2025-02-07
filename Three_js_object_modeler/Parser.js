@@ -1,6 +1,6 @@
 import * as Utils from './utils/utils';
 
-
+// pas d'interet 
 class Parser{
     constructor(){
 
@@ -20,6 +20,7 @@ class Parser{
     
 }
 
+// Pourquoi refaire un parser City GML
 class CityJSONParser extends Parser{
     constructor(){
         super();

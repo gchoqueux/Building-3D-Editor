@@ -10,10 +10,13 @@ import {ModelBuilder, MockModelBuilder, CityJSONModelBuilder} from "./ModelBuild
 import { LabelBuilder } from "./labelBuilder";
 import { ExactNumber as N } from "exactnumber/dist/index.umd";
 
+// https://threejs.org/examples/?q=conve#webgl_geometry_convex 
+// => peut etre utiliser class BufferGeometryConvex et BufferGeometryConvexDual
 class SceneBuilder{
     constructor(){
         this.vertex_data = {};
     }
+    // pourquoi passer le controller
     build(geometricalController, material){
         let objId = geometricalController.id;
         this.computeTriangulation(geometricalController);
@@ -179,7 +182,7 @@ class SceneBuilder{
         this.triangleData = new TriangleData(this.triangle_data.fIndex, this.triangle_data.pIndex);
     }
 
-
+    // responsabilité
     isBorder(geometricalController, p1_id,p2_id){
         let he1 = geometricalController.pointData.heIndex[p1_id][0];
         let targetPoint = geometricalController.halfEdgeData.targetPoint(he1);

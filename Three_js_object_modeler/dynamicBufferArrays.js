@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+
+// pourrait etre factoriser ?
 class DynamicBufferAttribute extends THREE.BufferAttribute{
     constructor(array, itemSize, normalized=false){
         super(array, itemSize, normalized);
@@ -195,7 +197,7 @@ class UInt16ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     
 
 }
-
+// Faire une classe pour mettre en comment les memes fonctions
 class Int16ArrayDynamicBufferAttribute extends DynamicBufferAttribute{
     constructor(array, itemSize, normalized=false){
         super( array , itemSize, normalized);

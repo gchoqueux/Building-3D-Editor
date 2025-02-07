@@ -262,7 +262,7 @@ let pyramid = {
 }
 
 //Maisons avec erreurs
-
+// Peut etre generer ?
 let house_noised = {
     'points':[
         [-5.456, 5.2 ,  5.12],//0

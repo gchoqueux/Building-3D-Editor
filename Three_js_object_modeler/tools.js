@@ -10,6 +10,9 @@ import { shiftFaceEdgeMaterial, shiftFacePointMaterial } from './materials/shift
 import { isTopologicallyValid } from './validityCheck.js';
 import { ExactNumber as N } from 'exactnumber/dist/index.umd.js';
 
+
+// Separer interface/structure de données/processus metier
+// appliquer plus un model/view/controller
 class ToolBar{
     constructor(camera, geometricalControllers, controls, scene, dualScene){
         this.tools = {

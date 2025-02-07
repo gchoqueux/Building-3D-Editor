@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Float32ArrayDynamicBufferAttribute, UInt16ArrayDynamicBufferAttribute, Int16ArrayDynamicBufferAttribute } from './dynamicBufferArrays.js';
 
 
-
+// Ne pas Heriter de mesh mais de THREE.BufferGeometry()
+// Pourquoi les donnees sont poussees dans des buffers ??
 class VertexData extends THREE.Mesh{
     constructor(vertices, normals, uvs, fIndex, pIndex, objIndex, faceBorder, material){
 

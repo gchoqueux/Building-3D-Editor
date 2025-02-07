@@ -8,6 +8,8 @@ import { mock_builds } from './objectCreation.js';
 
 
 import { ToolBar } from './tools.js';
+
+// https://github.com/ozekik/cityview/tree/master/packages/three-cityjson
 import { CityJSONParser } from './Parser.js';
 import { ControllersCollection } from './controllers/controllersCollection.js';
 import { loaders } from './loaders/loaders.js';
@@ -15,6 +17,8 @@ import { ExactMatrix } from './utils/exactMatrix.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 const w = window;
 
+// simplifier le main:  exporter uniquement les fonctionnalités et creer des exemples qui utilise les exports
+// separer interface GUI/affichage 3D/evenements/fonctionnalité métiers/ les Datas 3D (lumieres, camera, grille...)
 {
 
 
@@ -76,6 +80,7 @@ const w = window;
     controls.update();
 
     /////////////////////Scene Dual
+    // utilise le meme renderer et OrbitControl
     const dualRenderer = new THREE.WebGLRenderer({ antialias: true });
     const dualCamera = new THREE.PerspectiveCamera( 75, window.innerWidth*(1.-screen_split_ratio) / window.innerHeight, 0.1, 1000 );
     const dualControls = new OrbitControls( dualCamera, dualRenderer.domElement );

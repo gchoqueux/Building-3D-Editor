@@ -38,6 +38,7 @@ function findClosestPointToNLines(...lines){
         let W1_term = matrix(W0_i.prod(Pi));
         W1 = matrix(W1.add(W1_term));
     });
+    // creer un point exact ?
     let closestPoint = matrix(W0.inv()).prod(W1);
     closestPoint[0] = N(String(closestPoint[0]));
     closestPoint[1] = N(String(closestPoint[1]));
@@ -112,6 +113,7 @@ function computeShiftTValidity(planMobile, plan1, plan2, plan3){
     let t=N(0);
 
     //console.log(num, den);
+    // à factoriser
     if (den.isZero()){
         if(num.gt(N(0))){
             t=Infinity;

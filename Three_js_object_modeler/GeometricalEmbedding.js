@@ -1,5 +1,5 @@
 import { ExactNumber as N } from "exactnumber/dist/index.umd";
-
+// je ne me souviens plus c'est quoi GeometricalEmbedding? 
 class GeometricalEmbedding{
     constructor(){
 

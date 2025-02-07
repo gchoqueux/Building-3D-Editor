@@ -1,6 +1,7 @@
 import { buildingMaterial, buildingNotSelectedMaterial, buildingMaterialDebug } from "../materials/materials";
 
-
+// ne devrait pas exister
+// chaque controleur devrait etre actif ou non
 class ControllersCollection{
     static threeObjects = [];
     constructor(controllers, LoD, scene, dualScene, dualMaterial, dualPointsMaterial){

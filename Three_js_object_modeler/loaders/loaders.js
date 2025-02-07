@@ -3,8 +3,9 @@ import { GeometryBuilder } from "../Builders/GeometryBuilders";
 import { CityJSONModelBuilder, MockModelBuilder } from "../Builders/ModelBuilder";
 import { buildingMaterial, buildingMaterialDebug, dualMaterial, pointsMaterial } from "../materials/materials";
 
-
-
+// il faut clarifier la responsabiliter loader/builder
+// les controlleurs ne devrait pas etre ici
+// ne sert pas
 class Loader{
     constructor(){
 

@@ -1,8 +1,13 @@
 import * as THREE from 'three';
 import matrix from 'matrix-js';
+// minimiser les import d'exactnumber
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 import { pow, acos, abs, sqrt, PI } from 'exactnumber/dist/index.umd';
 
+
+
+// Verifier si les fonctions ne sont pas deja coder dans des packages
+// verifier la responsabiltés des fonctions et les deplacer dans les class appropriés 
 /**
  * Return the norme of the vector v
  * @param {float[]} v 
@@ -521,6 +526,7 @@ function translateThreeObject(threeObj, vector){
     
 }
 
+// ne semble pas à sa place
 
 function translateCityJSONObject(cityJSON_object, vector){
     let n = cityJSON_object.vertices.length;
@@ -532,7 +538,7 @@ function translateCityJSONObject(cityJSON_object, vector){
     }
     
 }
-
+//  pourquoi ici 
 function computeBBOX_CityJson(cityJsonData){
 
     let coords = new THREE.BufferGeometry();

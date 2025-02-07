@@ -2,7 +2,7 @@ import { Point3D, Polygon, LinearRing, MultiSurface } from "../CityGMLGeometricM
 import { Building, BuildingPart, WallSurface} from "../CityGMLLogicalModel";
 
 
-
+// pourquoi avair cette intermediaire
 class ModelBuilder{
     constructor(){
         this.buildings = [];
@@ -11,6 +11,7 @@ class ModelBuilder{
     build(Object){
         console.error("Strategy not choosen : this is an abstract method");
     }
+    // le model builder ne doit pas avoir les constructions
     getBuildings(){
         return this.buildings;
     }

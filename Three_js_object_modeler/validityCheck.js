@@ -1,5 +1,7 @@
 import * as Utils from './utils/utils';
 
+
+// on verifie la topologie de data donc passer la data et non le controller
 function isTopologicallyValid(geometricalController){
 
     let valid = true;
