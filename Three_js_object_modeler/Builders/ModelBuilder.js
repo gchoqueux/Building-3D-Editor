@@ -11,6 +11,7 @@ class ModelBuilder{
     build(Object){
         console.error("Strategy not choosen : this is an abstract method");
     }
+    // le model builder ne doit pas avoir les constructions
     getBuildings(){
         return this.buildings;
     }

@@ -1,4 +1,6 @@
-//Pyramide tronquée
+*//Pyramide tronquée
+
+// UTILISER DES FICHIERS MOCK
 
 let t_p = {
     'points':[
@@ -322,6 +324,7 @@ let pyramid_noised = {
 }
 
 
+// MAPPER LES NOMS A DES CHemins de fichiers
 
 let mock_builds = {"Pyramid":[pyramid], 
                   "TPyramid":[truncated_pyramide],

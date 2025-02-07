@@ -6,8 +6,11 @@ import Earcut from "earcut";
 import { ExactNumber as N } from 'exactnumber/dist/index.umd';
 import { ExactMatrix } from './utils/exactMatrix';
 
+
+// pourquoi ne pas utiliser three.vector3
 class Point3D{
     static maxId = 0;
+    // un point 3d ne doit pas gerer une liste point3d
     static pointsList = [];
     constructor(x,y,z){
         this.x=N(String(x));

@@ -4,7 +4,7 @@ import { CityJSONModelBuilder, MockModelBuilder } from "../Builders/ModelBuilder
 import { buildingMaterial, buildingMaterialDebug, dualMaterial, pointsMaterial } from "../materials/materials";
 
 
-
+// NE SERT PAS
 class Loader{
     constructor(){
 
